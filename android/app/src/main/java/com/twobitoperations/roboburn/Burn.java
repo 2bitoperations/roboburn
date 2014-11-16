@@ -44,7 +44,7 @@ public class Burn extends Activity {
         statusFormat.configure(getApplicationContext(),
                 R.xml.line_point_formatter_with_plf1);
 
-        modes = ArrayAdapter.createFromResource(this, R.array.modes, simple_spinner_item);
+        modes = ArrayAdapter.createFromResource(this, R.array.modes, R.layout.spin_big);
         mode = (Spinner)findViewById(R.id.mode);
 
         startHandlers();
