@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Roboburn</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="HighTemp">High(F)</string>
+    <string name="LowTemp">Low(F)</string>
+
+    <string-array name="modes">
+        <item name="off">OFF</item>
+        <item name="on">ON</item>
+        <item name="AUTO">AUTO</item>
+    </string-array>
+</resources>

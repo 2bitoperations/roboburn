@@ -1,4 +1,5 @@
 #!/usr/bin/python
+#sudo modprobe spi-bcm2708
 import sys
 import signal
 from flask import Flask
@@ -6,6 +7,7 @@ from flask import json
 from flask import request as freq
 import BurnerControl
 import logging
+import jsonpickle
 import threading
 
 app = Flask(__name__)
@@ -19,7 +21,7 @@ ch.setFormatter(formatter)
 rootLogger.addHandler(ch)
 
 fileLogger = logging.FileHandler("/tmp/server.log")
-fileLogger.setLevel(logging.INFO)
+fileLogger.setLevel(logging.WARN)
 fileLogger.setFormatter(formatter)
 rootLogger.addHandler(fileLogger)
 
@@ -31,20 +33,28 @@ def sayHello():
 @app.route('/status', methods=['GET'])
 def status():
     global burner_control
-    return json.dumps(burner_control.get_status())
+    return jsonpickle.encode(burner_control.get_status())
 
 @app.route('/mode', methods=['POST'])
 def set_mode():
     global burner_control
-    new_mode = BurnerControl.MODES[json.loads(freq.data)['mode']]
+    new_mode = BurnerControl.MODES[freq.args.get('mode')]
     burner_control.set_mode(new_mode)
+
+    return jsonpickle.encode(burner_control.get_status())
 
 @app.route('/setpoints', methods=['POST'])
 def set_temps():
     global burner_control
-    new_temps = json.loads(freq.data)
+    new_low = freq.args.get('low_temp')
+    new_high = freq.args.get('high_temp')
 
-    burner_control.set_temps(low_temp=float(new_temps['low_temp']), high_temp=float(new_temps['high_temp']))
+    if new_low:
+        burner_control.set_low(float(new_low))
+    if new_high:
+        burner_control.set_high(float(new_high))
+
+    return jsonpickle.encode(burner_control.get_status())
 
 class SigHandler:
     def __init__(self, burner_control):
