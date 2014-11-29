@@ -1,11 +1,11 @@
 # What's all this, then?
-This is a project that aims to control a heating system of some sort.
+This is a project that aims to control a food cooking system of some sort.
 
 Frying a turkey? Look no further.
 Brewing beer? Right here.
 Smoking a stuff or thing? Boom. This'll get er' done.
 
-The raspberry pi part of the code runs in python. It senses cooking fluid (air, oil, whatever,) temperature using a Type-K thermocouple, and makes turns on or off a relay that runs your heat system to keep everything toasty.
+The raspberry pi part of the code runs in python. It senses cooking fluid (air, oil, whatever,) temperature using a Type-K thermocouple, and turns on or off a relay that runs your heat system to keep everything toasty.
 
 The Android part runs on your phone or tablet to change heating setpoints and graph the current temps and whatnot.
 
