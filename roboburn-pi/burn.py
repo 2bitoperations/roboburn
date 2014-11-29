@@ -65,7 +65,7 @@ class SigHandler:
         sys.exit(0)
 
 global burner_control
-burner_control = BurnerControl.BurnerControl(gpio_pin=20)
+burner_control = BurnerControl.BurnerControl(gpio_pin=17)
 burner_thread = threading.Thread(target=burner_control.run)
 burner_thread.start()
 
