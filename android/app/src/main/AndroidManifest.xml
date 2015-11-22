@@ -3,6 +3,7 @@
     package="com.twobitoperations.roboburn" >
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-sdk android:minSdkVersion="20"/>
 
     <application
         android:allowBackup="true"
