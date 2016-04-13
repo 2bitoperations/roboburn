@@ -16,9 +16,16 @@ import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.preference.RingtonePreference;
 import android.text.TextUtils;
+import android.util.Log;
+
 import com.twobitoperations.roboburn.R;
 
+import java.io.IOException;
 import java.util.List;
+
+import javax.jmdns.JmDNS;
+import javax.jmdns.ServiceEvent;
+import javax.jmdns.ServiceListener;
 
 /**
  * A {@link PreferenceActivity} that presents a set of application settings. On
@@ -41,10 +48,36 @@ public class SettingsActivity extends PreferenceActivity {
      */
     private static final boolean ALWAYS_SIMPLE_PREFS = false;
 
+    // find the zeroconf bla bla
+    static class SampleListener implements ServiceListener {
+        @Override
+        public void serviceAdded(ServiceEvent event) {
+            Log.d(Burn.TAG, "ADD: " + event.getName() + " " + event.getType() + " " + event.getInfo());
+        }
+
+        @Override
+        public void serviceRemoved(ServiceEvent event) {
+            Log.d(Burn.TAG, "REMOVE: " + event.getName() + " " + event.getType() + " " + event.getInfo());
+        }
+
+        @Override
+        public void serviceResolved(ServiceEvent event) {
+            Log.d(Burn.TAG, "RESOLVED: " + event.getName() + " " + event.getType() + " " + event.getInfo());
+        }
+    }
+
 
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
+
+        JmDNS jmdns = null;
+        try {
+            jmdns = JmDNS.create();
+            jmdns.addServiceListener("_ws._tcp.roboburn", new SampleListener());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         setupSimplePreferencesScreen();
     }

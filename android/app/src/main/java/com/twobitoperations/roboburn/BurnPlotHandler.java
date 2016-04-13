@@ -5,9 +5,11 @@ import android.os.Handler;
 import android.os.Message;
 
 import com.androidplot.Series;
+import com.androidplot.ui.SeriesAndFormatter;
 import com.androidplot.xy.LineAndPointFormatter;
 import com.androidplot.xy.XYPlot;
 import com.androidplot.xy.XYSeries;
+import com.androidplot.xy.XYSeriesFormatter;
 import com.androidplot.xy.XYStepMode;
 import com.androidplot.xy.YValueMarker;
 import com.twobitoperations.roboburn.temp.BurnerStatus;
@@ -38,8 +40,8 @@ public class BurnPlotHandler extends Handler {
         plot.addMarker(high_marker);
         plot.addMarker(low_marker);
 
-        for (final XYSeries s : plot.getSeriesSet()) {
-            plot.removeSeries(s);
+        for (final SeriesAndFormatter<XYSeries, XYSeriesFormatter> s : plot.getSeriesRegistry()) {
+            plot.removeSeries(s.getSeries());
         }
 
         plot.addSeries(sense, statusFormatter);

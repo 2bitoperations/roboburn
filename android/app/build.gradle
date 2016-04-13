@@ -2,8 +2,11 @@ buildscript {
     repositories {
         mavenCentral()
     }
+    repositories {
+        jcenter()
+    }
     dependencies {
-        classpath 'com.android.tools.build:gradle:1.2.3+'
+        classpath 'com.android.tools.build:gradle:2.0.0'
     }
 }
 apply plugin: 'android'
@@ -21,7 +24,8 @@ dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     // You must install or update the Support Repository through the SDK manager to use this dependency.
     compile 'com.android.support:support-v4:20.+'
-    compile "com.androidplot:androidplot-core:0.6.1"
+    compile "com.androidplot:androidplot-core:0.9.6"
+    compile "javax.jmdns:jmdns:3.4.1"
     compile "com.squareup.retrofit:retrofit:1.7.1"
     compile "joda-time:joda-time:2.5"
     compile "com.google.guava:guava:18.0"

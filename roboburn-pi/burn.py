@@ -1,10 +1,14 @@
 #!/usr/bin/python
-#sudo modprobe spi-bcm2708
+import socket
 import sys
 import signal
-from flask import Flask
+from flask import Flask, appcontext_tearing_down
 from flask import json
 from flask import request as freq
+from zeroconf import Zeroconf
+from netifaces import interfaces, ifaddresses, AF_INET
+import time
+import zeroconf
 import BurnerControl
 import logging
 import jsonpickle
@@ -25,6 +29,8 @@ fileLogger.setLevel(logging.WARN)
 fileLogger.setFormatter(formatter)
 rootLogger.addHandler(fileLogger)
 
+PORT = 8088
+zeroconf_instance = Zeroconf()
 
 @app.route('/', methods=['GET'])
 def sayHello():
@@ -61,8 +67,34 @@ class SigHandler:
         self.burner_control = burner_control
 
     def handle_ctrlc(self, signal, frame):
+        logging.debug("processing signal")
         self.burner_control.stop()
         sys.exit(0)
+
+def register_zeroconf():
+    try:
+        register_time = time.time()*1000
+        for ifaceName in interfaces():
+            for i in ifaddresses(ifaceName).setdefault(AF_INET, [{'addr':None}]):
+                if i['addr'] is not None:
+                    ip = i['addr']
+                    hostname = socket.gethostbyaddr(ip)[0]
+                    type = "_ROBOBURN._tcp.local."
+                    service_info = zeroconf.ServiceInfo(type=type,
+                                                        name="roboburn:%s.%s" % (PORT, type),
+                                                        address=socket.inet_aton(i['addr']),
+                                                        port=PORT,
+                                                        weight=0,
+                                                        priority=0,
+                                                        properties={'version':'1', 'time':"%d" % register_time},
+                                                        server=hostname
+                                                        )
+        zeroconf_instance.register_service(info=service_info)
+    except Exception as ex:
+        logging.error("unable to register", exc_info=True)
+
+def unregister_zeroconf():
+    zeroconf_instance.unregister_all_services()
 
 global burner_control
 burner_control = BurnerControl.BurnerControl(gpio_pin=17)
@@ -73,4 +105,7 @@ signal_handler = SigHandler(burner_control=burner_control)
 signal.signal(signal.SIGINT, signal_handler.handle_ctrlc)
 logging.warn("sighandler started.")
 
-app.run(host='0.0.0.0', port=8088, debug=True, use_reloader=False)
+appcontext_tearing_down.connect(unregister_zeroconf, app)
+register_zeroconf()
+
+app.run(host='0.0.0.0', port=PORT, debug=True, use_reloader=False)

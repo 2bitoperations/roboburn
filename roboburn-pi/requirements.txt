@@ -1,0 +1,15 @@
+Flask==0.10.1
+Jinja2==2.8
+MarkupSafe==0.23
+Werkzeug==0.11.5
+enum==0.4.6
+enum-compat==0.0.2
+enum34==1.1.2
+itsdangerous==0.24
+jsonpickle==0.9.3
+netifaces==0.10.4
+sh==1.11
+six==1.10.0
+urllib3==1.15
+wsgiref==0.1.2
+zeroconf==0.17.5
