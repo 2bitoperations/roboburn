@@ -6,6 +6,7 @@ import android.content.res.Configuration;
 import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.ListPreference;
@@ -18,14 +19,20 @@ import android.preference.RingtonePreference;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import com.twobitoperations.roboburn.R;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import javax.jmdns.JmDNS;
 import javax.jmdns.ServiceEvent;
+import javax.jmdns.ServiceInfo;
 import javax.jmdns.ServiceListener;
+import javax.jmdns.ServiceTypeListener;
 
 /**
  * A {@link PreferenceActivity} that presents a set of application settings. On
@@ -47,39 +54,94 @@ public class SettingsActivity extends PreferenceActivity {
      * shown on tablets.
      */
     private static final boolean ALWAYS_SIMPLE_PREFS = false;
+    private ZeroConfTask zeroConfTask;
 
     // find the zeroconf bla bla
-    static class SampleListener implements ServiceListener {
+    static class SampleListener implements ServiceListener, ServiceTypeListener {
+        private Set<ServiceInfo> endpoints = Sets.newHashSet();
         @Override
         public void serviceAdded(ServiceEvent event) {
-            Log.d(Burn.TAG, "ADD: " + event.getName() + " " + event.getType() + " " + event.getInfo());
+            Log.d(Burn.TAG, "ADD: " + event.getName() + " " + event.getType() + " " + event.getInfo() + " a " + event.getInfo().getHostAddresses());
+            endpoints.add(event.getInfo());
         }
 
         @Override
         public void serviceRemoved(ServiceEvent event) {
             Log.d(Burn.TAG, "REMOVE: " + event.getName() + " " + event.getType() + " " + event.getInfo());
+            endpoints.remove(event.getInfo());
         }
 
         @Override
         public void serviceResolved(ServiceEvent event) {
             Log.d(Burn.TAG, "RESOLVED: " + event.getName() + " " + event.getType() + " " + event.getInfo());
+            endpoints.add(event.getInfo());
+        }
+
+        public Set<ServiceInfo> getInfos() {
+            return ImmutableSet.copyOf(endpoints);
+        }
+
+        @Override
+        public void serviceTypeAdded(ServiceEvent event) {
+            Log.d(Burn.TAG, "ADDSVC: n-" + event.getName() + " t-" + event.getType() + " i-" + event.getInfo());
+        }
+
+        @Override
+        public void subTypeForServiceTypeAdded(ServiceEvent event) {
+            Log.d(Burn.TAG, "ADDSVC: n-" + event.getName() + " t-" + event.getType() + " i-" + event.getInfo());
         }
     }
 
+    private class ZeroConfTask extends AsyncTask<String, Void, Collection<String>> {
+        private volatile boolean continueRunning = true;
+
+        public void stop() {
+            continueRunning = false;
+        }
+
+        @Override
+        protected Collection<String> doInBackground(String... strings) {
+            JmDNS jmdns = null;
+            final SampleListener listener = new SampleListener();
+            Log.d(Burn.TAG, "created listener");
+            try {
+                jmdns = JmDNS.create();
+                jmdns.addServiceTypeListener(listener);
+                jmdns.addServiceListener("_roboburn._tcp.local.", listener);
+                while (listener.getInfos().isEmpty() && continueRunning) {
+                    try {
+                        //Log.d(Burn.TAG, "sleeping");
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                Log.d(Burn.TAG, "INFOS:" + listener.getInfos());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            final ImmutableSet.Builder<String> hostnames = ImmutableSet.builder();
+            for (final ServiceInfo serviceInfo : listener.getInfos()) {
+                for (final String hostAddress : serviceInfo.getHostAddresses()) {
+                    hostnames.add(hostAddress);
+                }
+            }
+            return hostnames.build();
+        }
+    }
 
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
-
-        JmDNS jmdns = null;
-        try {
-            jmdns = JmDNS.create();
-            jmdns.addServiceListener("_ws._tcp.roboburn", new SampleListener());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
+        zeroConfTask = new ZeroConfTask();
+        zeroConfTask.execute("");
         setupSimplePreferencesScreen();
+    }
+
+    @Override
+    protected void onDestroy() {
+        zeroConfTask.stop();
+        super.onDestroy();
     }
 
     /**

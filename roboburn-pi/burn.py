@@ -79,9 +79,13 @@ def register_zeroconf():
                 if i['addr'] is not None:
                     ip = i['addr']
                     hostname = socket.gethostbyaddr(ip)[0]
-                    type = "_ROBOBURN._tcp.local."
+                    type = "_roboburn._tcp.local."
+                    logging.info("registering service type %s on ip %s at host %s",
+                                 type,
+                                 ip,
+                                 hostname)
                     service_info = zeroconf.ServiceInfo(type=type,
-                                                        name="roboburn:%s.%s" % (PORT, type),
+                                                        name="pyburn:%s.%s" % (PORT, type),
                                                         address=socket.inet_aton(i['addr']),
                                                         port=PORT,
                                                         weight=0,
@@ -89,7 +93,7 @@ def register_zeroconf():
                                                         properties={'version':'1', 'time':"%d" % register_time},
                                                         server=hostname
                                                         )
-        zeroconf_instance.register_service(info=service_info)
+        zeroconf_instance.register_service(info=service_info, ttl=5)
     except Exception as ex:
         logging.error("unable to register", exc_info=True)
 

@@ -50,7 +50,7 @@ public class Burn extends Activity {
         startHandlers();
     }
 
-    private void startHandlers() {
+    private synchronized void startHandlers() {
         if (timerThread == null) {
             SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
             final String endpoint = sharedPref.getString("ip", "http://192.168.5.114:8088");
@@ -88,7 +88,7 @@ public class Burn extends Activity {
     }
 
     @Override
-    protected void onPause() {
+    protected synchronized void onPause() {
         if (timerThread != null) {
             timerThread.setStopRequested(true);
             timerThread = null;
@@ -97,7 +97,7 @@ public class Burn extends Activity {
     }
 
     @Override
-    protected void onResume() {
+    protected synchronized void onResume() {
         startHandlers();
         super.onResume();
     }
