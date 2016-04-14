@@ -27,6 +27,8 @@ import com.google.common.collect.Sets;
 import com.twobitoperations.roboburn.R;
 
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.Collection;
@@ -68,8 +70,13 @@ public class SettingsActivity extends PreferenceActivity {
         @Override
         public void serviceAdded(ServiceEvent event) {
             Log.d(Burn.TAG, "ADD SINGLE: " + event);
-            for (final String host : event.getInfo().getHostAddresses()) {
-                Log.d(Burn.TAG, "ADD: " + event.getName() + " " + event.getType() + " " + event.getInfo() + " a " + host);
+            final List<InetAddress> inetAddresses = Lists.newArrayList();
+            final InetAddress[] addressesArray = event.getInfo().getInet4Addresses();
+            for (InetAddress address : addressesArray) {
+                inetAddresses.add(address);
+            }
+            for (final InetAddress address : inetAddresses) {
+                Log.d(Burn.TAG, "ADD: " + address);
             }
             endpoints.add(event.getInfo());
         }
@@ -116,18 +123,8 @@ public class SettingsActivity extends PreferenceActivity {
 
                 InetAddress use = null;
                 for (InetAddress candidate : addresses) {
-                    final String addr = candidate.getHostAddress();
-                    final Iterable<String> parts = Splitter.on('.').omitEmptyStrings().trimResults().split(addr);
-                    final List<String> listParts = Lists.newArrayList();
-                    Log.d(Burn.TAG, addr);
-                    for (String part : parts) {
-                        Log.d(Burn.TAG, part);
-                        listParts.add(part);
-                    }
                     if (candidate != null &&
-                            listParts != null &&
-                            listParts.size() > 2 &&
-                            !candidate.isLoopbackAddress()) {
+                            ((candidate instanceof Inet4Address && !candidate.isLoopbackAddress()))) {
                         use = candidate;
                     }
                 }
