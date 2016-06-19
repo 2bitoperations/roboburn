@@ -16,10 +16,12 @@ import android.widget.TextView;
 import com.androidplot.xy.LineAndPointFormatter;
 import com.androidplot.xy.PointLabelFormatter;
 import com.androidplot.xy.XYPlot;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.twobitoperations.roboburn.convert.JacksonConverter;
 
-import retrofit.RestAdapter;
+import java.util.concurrent.TimeUnit;
+
+import okhttp3.OkHttpClient;
+import retrofit2.Retrofit;
+import retrofit2.converter.jackson.JacksonConverterFactory;
 
 public class Burn extends Activity {
     protected BurnerControlService burnerService;
@@ -50,10 +52,16 @@ public class Burn extends Activity {
     private synchronized void startHandlers() {
         if (timerThread == null) {
             SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
-            final String endpoint = sharedPref.getString("ip", "http://192.168.5.114:8088");
+            final String endpoint = sharedPref.getString(SettingsActivity.KEY_IP, "http://192.168.5.114:8088");
 
-            final RestAdapter restAdapter = new RestAdapter.Builder().setEndpoint(endpoint)
-                    .setConverter(new JacksonConverter(new ObjectMapper()))
+            final OkHttpClient.Builder builder = new OkHttpClient.Builder();
+            builder.connectTimeout(1500, TimeUnit.MILLISECONDS);
+            builder.readTimeout(1500, TimeUnit.MILLISECONDS);
+
+            final Retrofit restAdapter = new Retrofit.Builder()
+                    .baseUrl(endpoint)
+                    .addConverterFactory(JacksonConverterFactory.create())
+                    .client(builder.build())
                     .build();
 
             this.burnerService = restAdapter.create(BurnerControlService.class);
@@ -115,6 +123,8 @@ public class Burn extends Activity {
         int id = item.getItemId();
         if (id == R.id.action_settings) {
             startActivity(new Intent(this, SettingsActivity.class));
+        } else if (id == R.id.action_mdns) {
+            startActivity(new Intent(this, mdns_detect.class));
         }
         return super.onOptionsItemSelected(item);
     }

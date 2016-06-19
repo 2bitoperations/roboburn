@@ -18,6 +18,8 @@ import com.twobitoperations.roboburn.temp.BurnerStatus;
 import com.twobitoperations.roboburn.temp.TempUtil;
 import com.twobitoperations.roboburn.temp.ThermocoupleRead;
 
+import java.io.IOException;
+
 public class BurnStatusHandler extends Handler {
     final int burnColor = 0xffff0100;
     final int waitColor = 0xff0015ff;
@@ -61,11 +63,15 @@ public class BurnStatusHandler extends Handler {
                     @Override
                     public void run() {
                         Log.i(Burn.TAG, "setting temps to " + high_val + " " + low_val);
-                        service.setHigh(high_val.toString());
-                        service.setLow(low_val.toString());
+                        try {
+                            service.setHigh(high_val.toString()).execute();
+                            service.setLow(low_val.toString()).execute();
+                            service.setMode(newMode).execute();
+                        } catch (IOException e) {
+                            Log.e(Burn.TAG, "unable to set", e);
+                        }
 
                         Log.i(Burn.TAG, "setting mode to " + newMode);
-                        service.setMode(newMode);
                     }
                 }).start();
             }

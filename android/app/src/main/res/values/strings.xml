@@ -4,6 +4,10 @@
     <string name="app_name">Roboburn</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+    <string name="action_mdns">Detect Roboburn</string>
+    <string name="mdnsSearching">Searching for Burns</string>
+    <string name="mdnsFoundNoIps">Found No Roboburns 😞</string>
+    <string name="mdnsFoundIp">😊 Found Roboburn at </string>
     <string name="HighTemp">High(F)</string>
     <string name="LowTemp">Low(F)</string>
 

@@ -2,21 +2,21 @@ package com.twobitoperations.roboburn;
 
 import com.twobitoperations.roboburn.temp.BurnerStatus;
 
-import retrofit.http.Body;
-import retrofit.http.GET;
-import retrofit.http.POST;
-import retrofit.http.Query;
+import retrofit2.Call;
+import retrofit2.http.GET;
+import retrofit2.http.POST;
+import retrofit2.http.Query;
 
 public interface BurnerControlService {
     @GET("/status")
-    public BurnerStatus getStatus();
+    public Call<BurnerStatus> getStatus();
 
     @POST("/mode")
-    public BurnerStatus setMode(@Query("mode") String mode);
+    public Call<BurnerStatus> setMode(@Query("mode") String mode);
 
     @POST("/setpoints")
-    public BurnerStatus setHigh(@Query("high_temp") String temp);
+    public Call<BurnerStatus> setHigh(@Query("high_temp") String temp);
 
     @POST("/setpoints")
-    public BurnerStatus setLow(@Query("low_temp") String temp);
+    public Call<BurnerStatus> setLow(@Query("low_temp") String temp);
 }

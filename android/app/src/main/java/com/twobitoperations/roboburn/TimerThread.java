@@ -37,7 +37,7 @@ public class TimerThread implements Runnable {
         Log.i(Burn.TAG, "hit run");
         while (!this.stopRequested) {
             try {
-                final BurnerStatus burnerStatus = this.service.getStatus();
+                final BurnerStatus burnerStatus = this.service.getStatus().execute().body();
 
                 this.plotHandler.sendMessage(getMessageFromStatus(burnerStatus));
                 this.statusHandler.sendMessage(getMessageFromStatus(burnerStatus));

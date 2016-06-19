@@ -3,32 +3,14 @@ package com.twobitoperations.roboburn;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.res.Configuration;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceFragment;
-import android.util.Log;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
-import java.io.IOException;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.util.Collection;
-import java.util.Enumeration;
 import java.util.List;
-import java.util.Set;
-
-import javax.jmdns.JmDNS;
-import javax.jmdns.ServiceEvent;
-import javax.jmdns.ServiceInfo;
-import javax.jmdns.ServiceListener;
 
 /**
  * A {@link PreferenceActivity} that presents a set of application settings. On
@@ -50,112 +32,15 @@ public class SettingsActivity extends PreferenceActivity {
      * shown on tablets.
      */
     private static final boolean ALWAYS_SIMPLE_PREFS = false;
-    private ZeroConfTask zeroConfTask;
-
-    // find the zeroconf bla bla
-    static class SampleListener implements ServiceListener {
-        private Set<ServiceInfo> endpoints = Sets.newHashSet();
-        @Override
-        public void serviceAdded(ServiceEvent event) {
-            Log.d(Burn.TAG, "ADD SINGLE: " + event);
-            final List<InetAddress> inetAddresses = Lists.newArrayList();
-            final InetAddress[] addressesArray = event.getInfo().getInet4Addresses();
-            for (InetAddress address : addressesArray) {
-                inetAddresses.add(address);
-            }
-            for (final InetAddress address : inetAddresses) {
-                Log.d(Burn.TAG, "ADD: " + address);
-            }
-            endpoints.add(event.getInfo());
-        }
-
-        @Override
-        public void serviceRemoved(ServiceEvent event) {
-            Log.d(Burn.TAG, "REMOVE: " + event.getName() + " " + event.getType() + " " + event.getInfo());
-            endpoints.remove(event.getInfo());
-        }
-
-        @Override
-        public void serviceResolved(ServiceEvent event) {
-            Log.d(Burn.TAG, "RESOLVED: " + event.getName() + " " + event.getType() + " " + event.getInfo());
-            endpoints.add(event.getInfo());
-        }
-
-        public Set<ServiceInfo> getInfos() {
-            return ImmutableSet.copyOf(endpoints);
-        }
-    }
-
-    private class ZeroConfTask extends AsyncTask<String, Void, Collection<String>> {
-        private volatile boolean continueRunning = true;
-
-        public void stop() {
-            continueRunning = false;
-        }
-
-        @Override
-        protected Collection<String> doInBackground(String... strings) {
-            JmDNS jmdns = null;
-            final SampleListener listener = new SampleListener();
-            Log.d(Burn.TAG, "created listener");
-            try {
-                Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-                Set<InetAddress> addresses = Sets.newHashSet();
-                while(interfaces.hasMoreElements())
-                {
-                    final Enumeration<InetAddress> addrs = interfaces.nextElement().getInetAddresses();
-                    while (addrs.hasMoreElements()) {
-                        addresses.add(addrs.nextElement());
-                    }
-                }
-
-                InetAddress use = null;
-                for (InetAddress candidate : addresses) {
-                    if (candidate != null &&
-                            ((candidate instanceof Inet4Address && !candidate.isLoopbackAddress()))) {
-                        use = candidate;
-                    }
-                }
-                Log.d(Burn.TAG, "binding to " + use.getHostAddress());
-                jmdns = JmDNS.create(use, "blablhalhalhalhalha");
-                //jmdns.addServiceTypeListener(listener);
-                final String type = "_roboburn._tcp.local.";
-                jmdns.addServiceListener(type, listener);
-                jmdns.requestServiceInfo(type, "pyburn-avahi", true, 2000);
-                Log.d(Burn.TAG, "requests done");
-                while (listener.getInfos().isEmpty() && continueRunning) {
-                    try {
-                        //Log.d(Burn.TAG, "sleeping");
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-                Log.d(Burn.TAG, "INFOS:" + listener.getInfos());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            final ImmutableSet.Builder<String> hostnames = ImmutableSet.builder();
-            for (final ServiceInfo serviceInfo : listener.getInfos()) {
-                for (final String hostAddress : serviceInfo.getHostAddresses()) {
-                    hostnames.add(hostAddress);
-                }
-            }
-            return hostnames.build();
-        }
-    }
 
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
-        zeroConfTask = new ZeroConfTask();
-        zeroConfTask.execute("");
         setupSimplePreferencesScreen();
     }
 
     @Override
     protected void onDestroy() {
-        zeroConfTask.stop();
         super.onDestroy();
     }
 
