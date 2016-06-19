@@ -21,9 +21,6 @@ import com.twobitoperations.roboburn.convert.JacksonConverter;
 
 import retrofit.RestAdapter;
 
-import static android.R.layout.simple_spinner_item;
-
-
 public class Burn extends Activity {
     protected BurnerControlService burnerService;
     public static final String TAG = "burn";

@@ -1,17 +1,16 @@
 #!/usr/bin/python
-import socket
 import sys
 import signal
+import logging
+import threading
+
 from flask import Flask, appcontext_tearing_down
 from flask import json
 from flask import request as freq
-from netifaces import interfaces, ifaddresses, AF_INET
-import time
 import zeroconf
-import BurnerControl
-import logging
 import jsonpickle
-import threading
+
+import BurnerControl
 
 app = Flask(__name__)
 rootLogger = logging.getLogger()
