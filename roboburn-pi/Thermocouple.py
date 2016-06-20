@@ -44,27 +44,47 @@ class Thermocouple:
         else:
             vcc_short = False
 
-        int_temp = ( read_bytes[2] & 0x7F ) << 4
-        int_temp = int_temp | (( read_bytes[3] & 0xF0 ) >> 4 )
-        if read_bytes[2] & 0x80 == 1:
-            int_temp = int_temp * -1
-        int_temp = int_temp * 0.0625
+        ref_temp_high_byte = ( read_bytes[2] & 0xFF ) << 4
+        ref_temp_low_byte = ( read_bytes[3] & 0xF0 ) >> 4
+        ref_temp_unscaled = Thermocouple.handle_twos_complement(ref_temp_high_byte | ref_temp_low_byte, 12)
+        ref_temp = ref_temp_unscaled * 0.0625
 
         if read_bytes[1] & 0x1 == 1:
             fault = True
         else:
             fault = False
 
-        # two "high bytes" format - V's are our temp bits:
-        # SVVV VVVV VVVV VVRF
-        probe_temp = ( ( read_bytes[0] & 0x7F ) << 6 ) | ( ( read_bytes[1] & 0xFC ) >> 2)
-        if read_bytes[0] & 0x80 == 1:
-            probe_temp = probe_temp * -1
-        probe_temp = probe_temp * 0.25
+        probe_temp = self.convert_bytes_to_temp(read_bytes)
 
         return Status(connected=connected,
                       gnd_short=gnd_short,
                       vcc_short=vcc_short,
-                      int_temp=int_temp,
+                      int_temp=ref_temp,
                       fault=fault,
                       probe_temp=probe_temp)
+
+    @staticmethod
+    def convert_bytes_to_temp(read_bytes):
+        # two bytes, two's complement format
+        # S = sign
+        # v = temp bits
+        # R = reserved, F = fault
+        # SVVV VVVV VVVV VVRF
+        bits_from_high_byte = read_bytes[0] & 0xFF
+        bits_from_high_byte = bits_from_high_byte << 6
+        bits_from_low_byte = read_bytes[1] & 0xFC
+        bits_from_low_byte = bits_from_low_byte >> 2
+
+        just_temp_bits = bits_from_high_byte | bits_from_low_byte
+        unscaled_probe_temp = Thermocouple.handle_twos_complement(just_temp_bits, 14)
+        probe_temp = unscaled_probe_temp * 0.25
+        return probe_temp
+
+    # shamelessly pulled from stackoverflow here:
+    # http://stackoverflow.com/questions/1604464/twos-complement-in-python
+    # thanks travc
+    @staticmethod
+    def handle_twos_complement(val, bits):
+        if (val & (1 << (bits - 1))) != 0: # if sign bit is set e.g., 8bit: 128-255
+            val = val - (1 << bits)        # compute negative value
+        return val                         # return positive value as is
