@@ -156,6 +156,11 @@ class BurnerControl:
             self.logger.warn("last read was fault")
             return
 
+        if self.high_temp <= self.low_temp:
+            self.logger.warn("high temp %s is less than equal to %s - shuttin' er down." % (self.high_temp, self.low_temp))
+            self.set_burn(False)
+            return
+
         last_sense_temp = self.sense_last.probe_temp
 
         # are we currently burning?

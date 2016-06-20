@@ -55,8 +55,8 @@ public class Burn extends Activity {
             final String endpoint = sharedPref.getString(SettingsActivity.KEY_IP, "http://192.168.5.114:8088");
 
             final OkHttpClient.Builder builder = new OkHttpClient.Builder();
-            builder.connectTimeout(1500, TimeUnit.MILLISECONDS);
-            builder.readTimeout(1500, TimeUnit.MILLISECONDS);
+            builder.connectTimeout(2500, TimeUnit.MILLISECONDS);
+            builder.readTimeout(2500, TimeUnit.MILLISECONDS);
 
             final Retrofit restAdapter = new Retrofit.Builder()
                     .baseUrl(endpoint)
