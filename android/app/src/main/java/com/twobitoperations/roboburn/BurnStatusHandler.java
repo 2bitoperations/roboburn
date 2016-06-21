@@ -14,11 +14,13 @@ import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
 
+import com.google.common.collect.ImmutableSet;
 import com.twobitoperations.roboburn.temp.BurnerStatus;
 import com.twobitoperations.roboburn.temp.TempUtil;
 import com.twobitoperations.roboburn.temp.ThermocoupleRead;
 
 import java.io.IOException;
+import java.util.Collection;
 
 public class BurnStatusHandler extends Handler {
     final int burnColor = 0xffff0100;
@@ -30,6 +32,7 @@ public class BurnStatusHandler extends Handler {
     final TextView modeIn;
     final TextView highIn;
     final TextView lowIn;
+    final Collection<TextView> allTextViews;
     final EditText high;
     final EditText low;
     final Spinner mode;
@@ -51,6 +54,8 @@ public class BurnStatusHandler extends Handler {
         this.save = save;
         this.modes = modes;
         this.service = service;
+        this.allTextViews = ImmutableSet.of(sense, food, burn, wait, highIn, lowIn, modeIn);
+
 
         this.save.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -82,8 +87,12 @@ public class BurnStatusHandler extends Handler {
     public void handleMessage(final Message message) {
         final Bundle bundle = message.getData();
         final BurnerStatus burnerStatus = (BurnerStatus)bundle.getSerializable(Burn.KEY_STATUS);
+        final Exception ex = (Exception)bundle.getSerializable(Burn.KEY_ERRORS);
 
-        if (burnerStatus != null) {
+        if (burnerStatus != null && ex == null) {
+            for (final TextView view : allTextViews) {
+                view.setVisibility(View.VISIBLE);
+            }
             updateTempText(burnerStatus.getTemp_sense(), this.sense);
             updateTempText(burnerStatus.getTemp_food(), this.food);
 
@@ -92,6 +101,10 @@ public class BurnStatusHandler extends Handler {
             modeIn.setText(burnerStatus.getMode().toString());
             lowIn.setText(String.format("%2.1f F", TempUtil.cToF(burnerStatus.getLow_temp())));
             highIn.setText(String.format("%2.1f F", TempUtil.cToF(burnerStatus.getHigh_temp())));
+        } else {
+            for (final TextView view : allTextViews) {
+                view.setVisibility(View.INVISIBLE);
+            }
         }
     }
 

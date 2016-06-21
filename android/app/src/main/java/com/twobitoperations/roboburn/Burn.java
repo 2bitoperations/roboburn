@@ -3,6 +3,7 @@ package com.twobitoperations.roboburn;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.view.Menu;
@@ -14,9 +15,21 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.androidplot.xy.LineAndPointFormatter;
-import com.androidplot.xy.PointLabelFormatter;
 import com.androidplot.xy.XYPlot;
+import com.androidplot.xy.XYStepMode;
 
+import org.joda.time.DateTimeZone;
+import org.joda.time.Instant;
+import org.joda.time.LocalDateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+
+import java.text.DecimalFormat;
+import java.text.FieldPosition;
+import java.text.Format;
+import java.text.ParsePosition;
+import java.text.SimpleDateFormat;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
@@ -27,26 +40,58 @@ public class Burn extends Activity {
     protected BurnerControlService burnerService;
     public static final String TAG = "burn";
     public static final String KEY_STATUS = "status";
+    public static final String KEY_ERRORS = "error";
     private ArrayAdapter<CharSequence> modes;
     private Spinner mode;
 
     protected TimerThread timerThread;
-    protected LineAndPointFormatter statusFormat;
+    protected LineAndPointFormatter burnFormat;
+    protected LineAndPointFormatter foodFormat;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_burn);
 
-        statusFormat = new LineAndPointFormatter();
-        statusFormat.setPointLabelFormatter(new PointLabelFormatter());
-        statusFormat.configure(getApplicationContext(),
-                R.xml.line_point_formatter_with_plf1);
+        burnFormat = new LineAndPointFormatter(
+                Color.RED, // line
+                Color.RED, // vertex
+                Color.TRANSPARENT, // fill
+                null //labeler
+        );
+
+        foodFormat = new LineAndPointFormatter(
+                Color.RED, // line
+                Color.RED, // vertex
+                Color.TRANSPARENT, // fill
+                null //labeler
+        );
 
         modes = ArrayAdapter.createFromResource(this, R.array.modes, R.layout.spin_big);
         mode = (Spinner)findViewById(R.id.mode);
 
         startHandlers();
+    }
+
+    public static class SimpleEpochMillisFormatter extends Format {
+        final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("HH:mm");
+
+        @Override
+        public StringBuffer format(Object o, StringBuffer stringBuffer, FieldPosition fieldPosition) {
+            if (o instanceof Double) {
+                final Double castDouble = (Double)o;
+                final Instant i = new Instant(castDouble.longValue());
+                final LocalDateTime localDateTime = new LocalDateTime(i, DateTimeZone.getDefault());
+                return simpleDateFormat.format(localDateTime.toDate(), stringBuffer, fieldPosition);
+            } else {
+                return stringBuffer;
+            }
+        }
+
+        @Override
+        public Object parseObject(String s, ParsePosition parsePosition) {
+            return null;
+        }
     }
 
     private synchronized void startHandlers() {
@@ -67,7 +112,11 @@ public class Burn extends Activity {
             this.burnerService = restAdapter.create(BurnerControlService.class);
 
             final XYPlot plot =(XYPlot) findViewById(R.id.tempPlot);
-            final BurnPlotHandler plotHandler = new BurnPlotHandler(plot, statusFormat);
+            final BurnPlotHandler plotHandler = new BurnPlotHandler(plot, burnFormat, foodFormat);
+            plot.setDomainValueFormat(new SimpleEpochMillisFormatter());
+            plot.setDomainStep(XYStepMode.SUBDIVIDE, 5);
+            plot.setRangeValueFormat(new DecimalFormat("#"));
+            plot.setRangeStep(XYStepMode.SUBDIVIDE, 5);
 
             final Spinner mode = (Spinner)findViewById(R.id.mode);
             mode.setAdapter(modes);

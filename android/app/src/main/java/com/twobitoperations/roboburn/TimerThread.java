@@ -32,6 +32,15 @@ public class TimerThread implements Runnable {
         return message;
     }
 
+    private Message getFaultMessage(Exception ex) {
+        final Message message = new Message();
+        final Bundle bundle = new Bundle();
+        bundle.putSerializable(Burn.KEY_ERRORS, ex);
+        message.setData(bundle);
+
+        return message;
+    }
+
     @Override
     public void run() {
         Log.i(Burn.TAG, "hit run");
@@ -43,6 +52,7 @@ public class TimerThread implements Runnable {
                 this.statusHandler.sendMessage(getMessageFromStatus(burnerStatus));
             } catch (Exception ex) {
                 Log.e(Burn.TAG, "blew up in read", ex);
+                this.statusHandler.sendMessage(getFaultMessage(ex));
             }
 
             try {
