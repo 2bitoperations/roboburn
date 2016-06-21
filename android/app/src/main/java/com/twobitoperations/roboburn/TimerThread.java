@@ -10,6 +10,7 @@ public class TimerThread implements Runnable {
     final BurnerControlService service;
     final BurnPlotHandler plotHandler;
     final BurnStatusHandler statusHandler;
+    boolean initialMessage = true;
 
     public void setStopRequested(boolean stopRequested) {
         this.stopRequested = stopRequested;
@@ -23,10 +24,11 @@ public class TimerThread implements Runnable {
         this.statusHandler = statusHandler;
     }
 
-    private Message getMessageFromStatus(final BurnerStatus burnerStatus) {
+    private Message getMessageFromStatus(final BurnerStatus burnerStatus, final boolean isInitialSet) {
         final Message message = new Message();
         final Bundle bundle = new Bundle();
         bundle.putSerializable(Burn.KEY_STATUS, burnerStatus);
+        bundle.putBoolean(Burn.KEY_INIT_SET, isInitialSet);
         message.setData(bundle);
 
         return message;
@@ -48,8 +50,12 @@ public class TimerThread implements Runnable {
             try {
                 final BurnerStatus burnerStatus = this.service.getStatus().execute().body();
 
-                this.plotHandler.sendMessage(getMessageFromStatus(burnerStatus));
-                this.statusHandler.sendMessage(getMessageFromStatus(burnerStatus));
+                this.plotHandler.sendMessage(getMessageFromStatus(burnerStatus, initialMessage));
+                this.statusHandler.sendMessage(getMessageFromStatus(burnerStatus, initialMessage));
+
+                if (initialMessage) {
+                    initialMessage = false;
+                }
             } catch (Exception ex) {
                 Log.e(Burn.TAG, "blew up in read", ex);
                 this.statusHandler.sendMessage(getFaultMessage(ex));

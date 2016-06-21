@@ -41,6 +41,7 @@ public class Burn extends Activity {
     public static final String TAG = "burn";
     public static final String KEY_STATUS = "status";
     public static final String KEY_ERRORS = "error";
+    public static final String KEY_INIT_SET = "initialSet";
     private ArrayAdapter<CharSequence> modes;
     private Spinner mode;
 

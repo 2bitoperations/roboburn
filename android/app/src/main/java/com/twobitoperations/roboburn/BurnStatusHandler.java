@@ -3,11 +3,8 @@ package com.twobitoperations.roboburn;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -87,6 +84,7 @@ public class BurnStatusHandler extends Handler {
     public void handleMessage(final Message message) {
         final Bundle bundle = message.getData();
         final BurnerStatus burnerStatus = (BurnerStatus)bundle.getSerializable(Burn.KEY_STATUS);
+        final boolean initialSet = bundle.getBoolean(Burn.KEY_INIT_SET);
         final Exception ex = (Exception)bundle.getSerializable(Burn.KEY_ERRORS);
 
         if (burnerStatus != null && ex == null) {
@@ -99,8 +97,13 @@ public class BurnStatusHandler extends Handler {
             updateBoolean(burnerStatus.isBurn(), burn, burnColor);
             updateBoolean(burnerStatus.isWait(), wait, waitColor);
             modeIn.setText(burnerStatus.getMode().toString());
-            lowIn.setText(String.format("%2.1f F", TempUtil.cToF(burnerStatus.getLow_temp())));
-            highIn.setText(String.format("%2.1f F", TempUtil.cToF(burnerStatus.getHigh_temp())));
+            lowIn.setText(String.format("%2.0f F", TempUtil.cToF(burnerStatus.getLow_temp())));
+            highIn.setText(String.format("%2.0f F", TempUtil.cToF(burnerStatus.getHigh_temp())));
+
+            if (initialSet) {
+                high.setText(String.format("%2.0f", TempUtil.cToF(burnerStatus.getHigh_temp())));
+                low.setText(String.format("%2.0f", TempUtil.cToF(burnerStatus.getLow_temp())));
+            }
         } else {
             for (final TextView view : allTextViews) {
                 view.setVisibility(View.INVISIBLE);
@@ -126,7 +129,7 @@ public class BurnStatusHandler extends Handler {
         if (read.isFault()) {
             textView.setText("FAULT");
         } else {
-            textView.setText(String.format("%2.1f F", read.getProbeF()));
+            textView.setText(String.format("%2.0f F", read.getProbeF()));
         }
     }
 }
