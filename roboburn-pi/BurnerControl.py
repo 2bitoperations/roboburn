@@ -2,7 +2,7 @@
 # sudo pip install enum34
 from enum import Enum
 import Thermocouple
-import spidev
+import Adafruit_GPIO.SPI as SPI
 import logging
 import time
 from threading import RLock
@@ -57,10 +57,8 @@ class BurnerControl:
         self.onoff_wait = onoff_wait
         self.sense_lock = RLock()
 
-        spi = spidev.SpiDev()
-
-        self.sense = Thermocouple.Thermocouple(spiDev=spi, chip=0)
-        self.food = Thermocouple.Thermocouple(spiDev=spi, chip=1)
+        self.sense = Thermocouple.Thermocouple(spiDev=SPI.SpiDev(port=0, device=0), chip=0)
+        self.food = Thermocouple.Thermocouple(spiDev=SPI.SpiDev(port=0, device=1), chip=1)
 
         self.sense_history = collections.deque([], maxlen=history_samples)
         self.sense_last = None

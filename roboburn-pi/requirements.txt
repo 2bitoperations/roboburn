@@ -13,3 +13,4 @@ six==1.10.0
 urllib3==1.15
 wsgiref==0.1.2
 zeroconf==0.17.5
+Adafruit-MAX31855=1.6.0

@@ -16,6 +16,9 @@ app = Flask(__name__)
 rootLogger = logging.getLogger()
 rootLogger.setLevel(logging.DEBUG)
 
+thermLogger = logging.getLogger('Adafruit_MAX31855.MAX31855')
+thermLogger.setLevel(logging.WARN)
+
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
