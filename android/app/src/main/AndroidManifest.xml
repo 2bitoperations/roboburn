@@ -27,7 +27,7 @@
         <activity
             android:name=".SettingsActivity"
             android:label="@string/title_activity_settings"></activity>
-        <activity android:name=".mdns_detect"></activity>
+        <activity android:name=".MDNSDetector"></activity>
     </application>
 
 </manifest>

@@ -1,16 +1,18 @@
 #!/usr/bin/python
-import sys
-import signal
 import logging
+import signal
+import socket
+import sys
 import threading
 
+import jsonpickle
+import zeroconf
 from flask import Flask, appcontext_tearing_down
 from flask import json
 from flask import request as freq
-import zeroconf
-import jsonpickle
 
 import BurnerControl
+from AddressFind import get_best_if_address
 
 app = Flask(__name__)
 rootLogger = logging.getLogger()
@@ -19,11 +21,15 @@ rootLogger.setLevel(logging.DEBUG)
 thermLogger = logging.getLogger('Adafruit_MAX31855.MAX31855')
 thermLogger.setLevel(logging.WARN)
 
+zeroconf_logger = zeroconf.log
+zeroconf_logger.setLevel(logging.DEBUG)
+
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 rootLogger.addHandler(ch)
+zeroconf_logger.addHandler(ch)
 
 fileLogger = logging.FileHandler("/tmp/server.log")
 fileLogger.setLevel(logging.WARN)
@@ -68,40 +74,55 @@ def set_temps():
 
 
 class SigHandler:
-    def __init__(self, burner_control):
-        self.burner_control = burner_control
+    def __init__(self, local_burner_control, zeroconf):
+        self.burner_control = local_burner_control
+        self.zeroconf = zeroconf
 
     def handle_ctrlc(self, signal, frame):
         logging.debug("processing signal")
+        self.zeroconf.unregister_all_services()
+        self.zeroconf.close()
         self.burner_control.stop()
         sys.exit(0)
 
 
-def register_zeroconf():
+def register_zeroconfs():
     try:
-        type = "_roboburn._tcp"
-        info = zeroconf.ServiceInfo(name="pyburn-avahi._roboburn._tcp",
-                                    type=type,
-                                    port="%d" % PORT)
-        zc = zeroconf.Zeroconf().register_service(info=info)
+        address_to_use = get_best_if_address()
+        if address_to_use:
+            logging.info("will use address %s for zc" % address_to_use)
+            type = "_roboburn._tcp.local."
+            info = zeroconf.ServiceInfo(name="roboburn._roboburn._tcp.local.",
+                                        type_=type,
+                                        address=socket.inet_aton(address_to_use),
+                                        port=PORT,
+                                        weight=1,
+                                        priority=1,
+                                        properties={'robo': 'burn'},
+                                        server='roboburn.local.')
+            zc.register_service(info=info, ttl=120, allow_name_change=True)
+        else:
+            logging.error("couldn't find ip to bind zeroconf to!")
     except Exception as ex:
         logging.error("unable to register", exc_info=True)
 
 
-def unregister_zeroconf():
-    print "unregister"
+def unregister_zeroconfs(sender, **extra):
+    print "unregistering zc sender %s extra %s" % (sender, extra)
+    zc.unregister_all_services()
+    register_zeroconfs()
 
 
-global burner_control
+zc = zeroconf.Zeroconf()
 burner_control = BurnerControl.BurnerControl(gpio_pin=17)
 burner_thread = threading.Thread(target=burner_control.run)
 burner_thread.start()
 
-signal_handler = SigHandler(burner_control=burner_control)
+signal_handler = SigHandler(local_burner_control=burner_control, zeroconf=zc)
 signal.signal(signal.SIGINT, signal_handler.handle_ctrlc)
 logging.warn("sighandler started.")
 
-appcontext_tearing_down.connect(unregister_zeroconf, app)
-register_zeroconf()
+#appcontext_tearing_down.connect(unregister_zeroconfs, app)
+register_zeroconfs()
 
 app.run(host='0.0.0.0', port=PORT, debug=True, use_reloader=False)

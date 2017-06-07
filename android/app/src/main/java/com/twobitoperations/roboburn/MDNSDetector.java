@@ -11,9 +11,8 @@ import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import com.androidplot.ui.widget.TextLabelWidget;
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -32,7 +31,7 @@ import javax.jmdns.ServiceEvent;
 import javax.jmdns.ServiceInfo;
 import javax.jmdns.ServiceListener;
 
-public class mdns_detect extends Activity implements View.OnClickListener {
+public class MDNSDetector extends Activity implements View.OnClickListener {
     private ZeroConfTask zeroConfTask;
     private ProgressBar progressBar;
     private TextView label;
@@ -47,19 +46,28 @@ public class mdns_detect extends Activity implements View.OnClickListener {
     }
 
     static class SampleListener implements ServiceListener {
-        private Set<ServiceInfo> endpoints = Sets.newHashSet();
+        // can't use set, the impl class hashes on service name
+        private List<ServiceInfo> endpoints = Lists.newLinkedList();
         @Override
         public void serviceAdded(ServiceEvent event) {
             Log.d(Burn.TAG, "ADD SINGLE: " + event);
+            handleResolveOrAdd(event);
+        }
+
+        private void handleResolveOrAdd(ServiceEvent event) {
             final List<InetAddress> inetAddresses = Lists.newArrayList();
             final InetAddress[] addressesArray = event.getInfo().getInet4Addresses();
             for (InetAddress address : addressesArray) {
                 inetAddresses.add(address);
             }
             for (final InetAddress address : inetAddresses) {
-                Log.d(Burn.TAG, "ADD: " + address);
+                Log.d(Burn.TAG, "found: " + address);
             }
-            endpoints.add(event.getInfo());
+            if (addressesArray.length > 0) {
+                endpoints.add(event.getInfo());
+            } else {
+                Log.d(Burn.TAG, "ignoring " + event + " no addresses");
+            }
         }
 
         @Override
@@ -71,19 +79,19 @@ public class mdns_detect extends Activity implements View.OnClickListener {
         @Override
         public void serviceResolved(ServiceEvent event) {
             Log.d(Burn.TAG, "RESOLVED: " + event.getName() + " " + event.getType() + " " + event.getInfo());
-            endpoints.add(event.getInfo());
+            handleResolveOrAdd(event);
         }
 
-        public Set<ServiceInfo> getInfos() {
-            return ImmutableSet.copyOf(endpoints);
+        public List<ServiceInfo> getInfos() {
+            return ImmutableList.copyOf(endpoints);
         }
     }
 
     private class ZeroConfTask extends AsyncTask<String, Collection<String>, Collection<String>> {
         private volatile boolean continueRunning = true;
-        private final mdns_detect parent;
+        private final MDNSDetector parent;
 
-        private ZeroConfTask(mdns_detect parent) {
+        private ZeroConfTask(MDNSDetector parent) {
             this.parent = parent;
         }
 
@@ -141,17 +149,18 @@ public class mdns_detect extends Activity implements View.OnClickListener {
                 //jmdns.addServiceTypeListener(listener);
                 final String type = "_roboburn._tcp.local.";
                 jmdns.addServiceListener(type, listener);
-                jmdns.requestServiceInfo(type, "pyburn-avahi", true, 2000);
+
                 Log.d(Burn.TAG, "requests done");
                 while (listener.getInfos().isEmpty() && continueRunning) {
                     try {
                         //Log.d(Burn.TAG, "sleeping");
-                        Thread.sleep(10000);
+                        Thread.sleep(1000);
                     } catch (InterruptedException e) {
                         publishProgress(ImmutableSet.<String>of());
                         e.printStackTrace();
                     }
                 }
+                jmdns.removeServiceListener(type, listener);
                 Log.d(Burn.TAG, "INFOS:" + listener.getInfos());
             } catch (IOException e) {
                 publishProgress(ImmutableSet.<String>of());

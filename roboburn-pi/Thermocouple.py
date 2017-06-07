@@ -2,6 +2,7 @@ import logging
 import time
 from Adafruit_MAX31855 import MAX31855
 
+
 class Status:
     def __init__(self, connected, gnd_short, vcc_short, int_temp, fault, probe_temp):
         self.connected = connected
@@ -11,6 +12,7 @@ class Status:
         self.fault = fault
         self.probe_temp = probe_temp
         self.time = time.time()
+
 
 class Thermocouple:
 

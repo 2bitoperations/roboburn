@@ -6,10 +6,11 @@ import Adafruit_GPIO.SPI as SPI
 import logging
 import time
 from threading import RLock
-import RPi.GPIO as GPIO
+import Adafruit_GPIO as GPIO
 import collections
 import jsonpickle
 import datetime
+
 
 class Status:
     def __init__(self, mode, low_temp, high_temp, burn, wait, temp_sense, history_sense, temp_food, history_food):
@@ -31,10 +32,12 @@ class Status:
 
         return out
 
+
 class MODES(Enum):
     AUTO='AUTO'
     OFF='OFF'
     ON='ON'
+
 
 class BurnerControl:
     def __init__(self, gpio_pin, low_temp=0, high_temp=100, history_samples=256, history_time=datetime.timedelta(minutes=5).total_seconds(), polltime=.25, onoff_wait=6):
@@ -67,9 +70,9 @@ class BurnerControl:
 
         self.logger = logging.getLogger("burner")
 
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.gpio_pin, GPIO.OUT)
-        GPIO.output(self.gpio_pin, True)
+        self.gpio = GPIO.get_platform_gpio()
+        self.gpio.setup(self.gpio_pin, GPIO.OUT)
+        self.gpio.output(self.gpio_pin, True)
 
     def get_status(self):
         return Status(mode=self.mode,
@@ -98,7 +101,7 @@ class BurnerControl:
 
         self.burn = burn
         # RPI gpio is active low
-        GPIO.output(self.gpio_pin, not burn)
+        self.gpio.output(self.gpio_pin, not burn)
 
     def set_mode(self, mode):
         self.logger.warn("mode change from %s to %s" %(self.mode, mode))

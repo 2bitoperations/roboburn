@@ -22,15 +22,12 @@ import com.androidplot.xy.XYStepMode;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
 import org.joda.time.LocalDateTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 
 import java.text.DecimalFormat;
 import java.text.FieldPosition;
 import java.text.Format;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
-import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
@@ -176,7 +173,7 @@ public class Burn extends Activity {
         if (id == R.id.action_settings) {
             startActivity(new Intent(this, SettingsActivity.class));
         } else if (id == R.id.action_mdns) {
-            startActivity(new Intent(this, mdns_detect.class));
+            startActivity(new Intent(this, MDNSDetector.class));
         }
         return super.onOptionsItemSelected(item);
     }
