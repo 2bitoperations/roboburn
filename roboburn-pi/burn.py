@@ -22,7 +22,7 @@ thermLogger = logging.getLogger('Adafruit_MAX31855.MAX31855')
 thermLogger.setLevel(logging.WARN)
 
 zeroconf_logger = zeroconf.log
-zeroconf_logger.setLevel(logging.DEBUG)
+zeroconf_logger.setLevel(logging.ERROR)
 
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
