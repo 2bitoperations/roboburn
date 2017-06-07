@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ArrayAdapter;
@@ -98,7 +99,8 @@ public class Burn extends Activity {
     private synchronized void startHandlers() {
         if (timerThread == null) {
             SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
-            final String endpoint = sharedPref.getString(SettingsActivity.KEY_IP, "http://192.168.5.114:8088");
+            final String endpoint = sharedPref.getString(SettingsActivity.KEY_IP, "http://roboburn:8088/");
+            Log.i(Burn.TAG, "endpoint is " + endpoint);
 
             final OkHttpClient.Builder builder = new OkHttpClient.Builder();
             builder.connectTimeout(2500, TimeUnit.MILLISECONDS);

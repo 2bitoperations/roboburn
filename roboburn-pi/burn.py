@@ -32,14 +32,17 @@ rootLogger.addHandler(fileLogger)
 
 PORT = 8088
 
+
 @app.route('/', methods=['GET'])
 def sayHello():
     return json.dumps({'greeting': 'Howdy, World!!'})
+
 
 @app.route('/status', methods=['GET'])
 def status():
     global burner_control
     return jsonpickle.encode(burner_control.get_status())
+
 
 @app.route('/mode', methods=['POST'])
 def set_mode():
@@ -48,6 +51,7 @@ def set_mode():
     burner_control.set_mode(new_mode)
 
     return jsonpickle.encode(burner_control.get_status())
+
 
 @app.route('/setpoints', methods=['POST'])
 def set_temps():
@@ -62,6 +66,7 @@ def set_temps():
 
     return jsonpickle.encode(burner_control.get_status())
 
+
 class SigHandler:
     def __init__(self, burner_control):
         self.burner_control = burner_control
@@ -71,17 +76,21 @@ class SigHandler:
         self.burner_control.stop()
         sys.exit(0)
 
+
 def register_zeroconf():
     try:
         type = "_roboburn._tcp"
-        zeroconf.register(name="pyburn-avahi",
-                          type=type,
-                          port="%d" % PORT)
+        info = zeroconf.ServiceInfo(name="pyburn-avahi._roboburn._tcp",
+                                    type=type,
+                                    port="%d" % PORT)
+        zc = zeroconf.Zeroconf().register_service(info=info)
     except Exception as ex:
         logging.error("unable to register", exc_info=True)
 
+
 def unregister_zeroconf():
     print "unregister"
+
 
 global burner_control
 burner_control = BurnerControl.BurnerControl(gpio_pin=17)

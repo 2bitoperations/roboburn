@@ -2,7 +2,7 @@
     <!-- NOTE: EditTextPreference accepts EditText attributes. -->
     <!-- NOTE: EditTextPreference's summary should be set to its value by the activity code. -->
     <EditTextPreference
-        android:key="ip"
+        android:key="KEY_IP"
         android:title="@string/pref_title_ip"
         android:defaultValue="http://192.168.5.114:8088"
         android:selectAllOnFocus="true"
