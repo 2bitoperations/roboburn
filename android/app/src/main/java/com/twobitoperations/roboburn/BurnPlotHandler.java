@@ -4,11 +4,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 
-import com.androidplot.ui.SeriesAndFormatter;
 import com.androidplot.xy.LineAndPointFormatter;
 import com.androidplot.xy.XYPlot;
 import com.androidplot.xy.XYSeries;
-import com.androidplot.xy.XYSeriesFormatter;
 import com.androidplot.xy.YValueMarker;
 import com.google.common.collect.ImmutableList;
 import com.twobitoperations.roboburn.temp.BurnerStatus;
@@ -42,11 +40,11 @@ public class BurnPlotHandler extends Handler {
         plot.addMarker(low_marker);
 
         final ImmutableList.Builder<XYSeries> seriesToRemove = ImmutableList.builder();
-        for (final SeriesAndFormatter<XYSeries, XYSeriesFormatter> s : plot.getSeriesRegistry()) {
-            seriesToRemove.add(s.getSeries());
+        for (final XYSeries s : plot.getRegistry().getSeriesList()) {
+            seriesToRemove.add(s);
         }
         for (final XYSeries series : seriesToRemove.build()) {
-            plot.getSeriesRegistry().remove(seriesToRemove);
+            plot.getRegistry().remove(series);
         }
 
         plot.addSeries(sense, senseFormatter);

@@ -16,14 +16,13 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.androidplot.xy.LineAndPointFormatter;
+import com.androidplot.xy.StepMode;
 import com.androidplot.xy.XYPlot;
-import com.androidplot.xy.XYStepMode;
 
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
 import org.joda.time.LocalDateTime;
 
-import java.text.DecimalFormat;
 import java.text.FieldPosition;
 import java.text.Format;
 import java.text.ParsePosition;
@@ -113,10 +112,10 @@ public class Burn extends Activity {
 
             final XYPlot plot =(XYPlot) findViewById(R.id.tempPlot);
             final BurnPlotHandler plotHandler = new BurnPlotHandler(plot, burnFormat, foodFormat);
-            plot.setDomainValueFormat(new SimpleEpochMillisFormatter());
-            plot.setDomainStep(XYStepMode.SUBDIVIDE, 5);
-            plot.setRangeValueFormat(new DecimalFormat("#"));
-            plot.setRangeStep(XYStepMode.SUBDIVIDE, 5);
+            //plot.setDomainValueFormat(new SimpleEpochMillisFormatter());
+            plot.setDomainStep(StepMode.SUBDIVIDE, 5);
+            //plot.setRangeValueFormat(new DecimalFormat("#"));
+            plot.setRangeStep(StepMode.SUBDIVIDE, 5);
 
             final Spinner mode = (Spinner)findViewById(R.id.mode);
             mode.setAdapter(modes);
