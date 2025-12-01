@@ -66,13 +66,14 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       .numpad-btn {
         font-size: 1.5em;
       }
+      .min-h-0 { min-height: 0; }
     </style>
   </head>
   <body>
     <div class="container-fluid h-100">
-      <div class="row h-100" style="min-height: 0;">
+      <div class="row h-100 min-h-0">
         <!-- Left Column: Controls and Graph -->
-        <div class="col-lg-8 d-flex flex-column py-3" style="min-height: 0;">
+        <div class="col-lg-8 d-flex flex-column py-3 min-h-0">
           <div class="row flex-shrink-0">
             <div class="col-6">
               <div class="temperature-display" id="oil-display-container">
@@ -98,7 +99,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
             </div>
           </div>
 
-          <div class="row mt-3 flex-grow-1" style="min-height: 0;">
+          <div class="row mt-3 flex-grow-1 min-h-0">
             <div class="col-12 h-100">
               <canvas id="temp-chart"></canvas>
             </div>
@@ -106,9 +107,9 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
         </div>
 
         <!-- Right Column: Log Window -->
-        <div class="col-lg-4 d-flex flex-column py-3" style="min-height: 0;">
+        <div class="col-lg-4 d-flex flex-column py-3 min-h-0">
           <h5 class="flex-shrink-0">Logs</h5>
-          <div class="log-window flex-grow-1" id="log-window" style="min-height: 0;">
+          <div class="log-window flex-grow-1 min-h-0" id="log-window">
             <!-- Log messages will be inserted here -->
           </div>
         </div>
@@ -125,19 +126,19 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
           </div>
           <div class="modal-body">
             <input type="text" class="form-control text-end mb-2" id="numpad-display" readonly>
-            <div class="row g-2">
-              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('1')">1</button></div>
-              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('2')">2</button></div>
-              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('3')">3</button></div>
-              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('4')">4</button></div>
-              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('5')">5</button></div>
-              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('6')">6</button></div>
-              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('7')">7</button></div>
-              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('8')">8</button></div>
-              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('9')">9</button></div>
-              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="clearDisplay()">C</button></div>
-              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('0')">0</button></div>
-              <div class="col-4"><button class="btn btn-primary w-100 numpad-btn" onclick="setTemperature()">Set</button></div>
+            <div class="row g-2" id="numpad-grid">
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" data-key="1">1</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" data-key="2">2</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" data-key="3">3</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" data-key="4">4</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" data-key="5">5</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" data-key="6">6</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" data-key="7">7</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" data-key="8">8</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" data-key="9">9</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" data-action="clear">C</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" data-key="0">0</button></div>
+              <div class="col-4"><button class="btn btn-primary w-100 numpad-btn" data-action="set">Set</button></div>
             </div>
           </div>
         </div>
@@ -222,34 +223,21 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       });
 
       let lastFetchTime = Date.now();
-
-      function decimateHistory(history) {
-        if (history.length < 300) return history;
-
-        const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-        const recentData = history.filter(p => p.time >= fiveMinutesAgo);
-        const oldData = history.filter(p => p.time < fiveMinutesAgo);
-
-        const decimatedOldData = [];
-        let lastKeptTimestamp = 0;
-        for (const point of oldData) {
-          if (point.time - lastKeptTimestamp >= 30000) {
-            decimatedOldData.push(point);
-            lastKeptTimestamp = point.time;
-          }
-        }
-        if (oldData.length > 0 && decimatedOldData[decimatedOldData.length - 1] !== oldData[oldData.length - 1]) {
-            decimatedOldData.push(oldData[oldData.length - 1]);
-        }
-
-        return decimatedOldData.concat(recentData);
-      }
+      const INTERVALS = { TEMPS: 1000, LOGS: 2000, STATUS: 1000, STALE: 5000 };
+      const MAX_POINTS = 1800;
+      const API = {
+        TEMPS: '/temperatures',
+        HISTORY: '/temperature_history',
+        STATUS: '/status',
+        LOGS: '/logs',
+        TOGGLE: '/toggle_run_state',
+        SET_TARGET: '/set_target_temp'
+      };
 
       function loadHistory() {
-        fetch('/temperature_history')
+        fetch(API.HISTORY)
           .then(response => response.json())
-          .then(fullHistory => {
-            const history = decimateHistory(fullHistory);
+          .then(history => {
             const oilData = history.map(item => ({ x: item.time, y: item.oil_temp }));
             const turkeyData = history.map(item => ({ x: item.time, y: item.turkey_temp }));
             
@@ -260,7 +248,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       }
 
       function updateTemperatures() {
-        fetch('/temperatures')
+        fetch(API.TEMPS)
           .then(response => response.ok ? response.json() : Promise.reject('Network response was not ok'))
           .then(data => {
             if (!data.time) return;
@@ -274,7 +262,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
             tempChart.data.datasets[0].data.push(newDataPointOil);
             tempChart.data.datasets[1].data.push(newDataPointTurkey);
 
-            if (tempChart.data.datasets[0].data.length > 1800) {
+            if (tempChart.data.datasets[0].data.length > MAX_POINTS) {
               tempChart.data.datasets[0].data.shift();
               tempChart.data.datasets[1].data.shift();
             }
@@ -288,7 +276,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       }
 
       function updateLogs() {
-        fetch('/logs')
+        fetch(API.LOGS)
           .then(response => response.json())
           .then(logs => {
             if (logWindow.children.length !== logs.length) {
@@ -304,7 +292,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       }
 
       function updateStatus() {
-        fetch('/status')
+        fetch(API.STATUS)
           .then(response => response.json())
           .then(data => {
             if (data.running) {
@@ -333,7 +321,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       }
 
       function toggleRunState() {
-        fetch('/toggle_run_state', { method: 'POST' })
+        fetch(API.TOGGLE, { method: 'POST' })
           .then(response => response.json())
           .then(data => {
             if (data.success) {
@@ -346,7 +334,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       function setTemperature() {
         const newTemp = numpadDisplay.value;
         if (newTemp) {
-          fetch('/set_target_temp', {
+          fetch(API.SET_TARGET, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ temp: newTemp }),
@@ -366,7 +354,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       }
 
       function checkStaleData() {
-        if (Date.now() - lastFetchTime > 5000) {
+        if (Date.now() - lastFetchTime > INTERVALS.STALE) {
           oilDisplayContainer.classList.add('stale-data');
           turkeyDisplayContainer.classList.add('stale-data');
         }
@@ -376,9 +364,15 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
 
       const numpadDisplay = document.getElementById('numpad-display');
       const numpadModal = new bootstrap.Modal(document.getElementById('numpad-modal'));
-
-      function appendToDisplay(value) { numpadDisplay.value += value; }
-      function clearDisplay() { numpadDisplay.value = ''; }
+      const numpadGrid = document.getElementById('numpad-grid');
+      numpadGrid.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const { key, action } = btn.dataset;
+        if (key !== undefined) { numpadDisplay.value += key; return; }
+        if (action === 'clear') { numpadDisplay.value = ''; return; }
+        if (action === 'set') { setTemperature(); }
+      });
 
       document.getElementById('numpad-modal').addEventListener('shown.bs.modal', () => {
         numpadDisplay.value = '';
@@ -387,10 +381,10 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
 
       loadHistory();
       updateStatus();
-      setInterval(updateTemperatures, 1000);
-      setInterval(updateLogs, 2000);
-      setInterval(updateStatus, 1000);
-      setInterval(checkStaleData, 1000);
+      setInterval(updateTemperatures, INTERVALS.TEMPS);
+      setInterval(updateLogs, INTERVALS.LOGS);
+      setInterval(updateStatus, INTERVALS.STATUS);
+      setInterval(checkStaleData, INTERVALS.TEMPS);
     </script>
   </body>
 </html>
