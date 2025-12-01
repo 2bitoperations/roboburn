@@ -9,8 +9,29 @@ from flask_assets import Bundle, Environment
 from simple_pid import PID
 from background_workers import temperature_worker, burner_control_worker
 
+KEY_OIL_TEMP = "oil_temp"
+KEY_TURKEY_TEMP = "turkey_temp"
+KEY_TIME = "time"
+KEY_RUNNING = "running"
+KEY_TARGET_TEMP = "target_temp"
+KEY_BURNER_ON = "burner_on"
+KEY_PID_OUTPUT = "pid_output"
+KEY_LAST_TOGGLE_TIME = "last_toggle_time"
+
+SECOND = 1
+MINUTE = 60
+HOUR = 60 * MINUTE
+FIVE_MINUTES_MS = 5 * MINUTE * 1000
+RAW_HISTORY_SECONDS = 60 * MINUTE  # 1 hour of 1s samples
+LOG_MAX_LEN = 100
+DEFAULT_TARGET_TEMP = 350.0
+PID_KP = 5.0
+PID_KI = 0.05
+PID_KD = 20.0
+PID_OUT_MIN, PID_OUT_MAX = 0, 100
+
 # --- Logging Setup ---
-log_messages = deque(maxlen=100)
+log_messages = deque(maxlen=LOG_MAX_LEN)
 log_lock = threading.Lock()
 
 
@@ -29,18 +50,21 @@ class DequeHandler(logging.Handler):
 
 
 # --- Data Structures & PID Controller ---
-temperature_data = {"oil_temp": 70.0, "turkey_temp": 70.0}
+temperature_data = {KEY_OIL_TEMP: 70.0, KEY_TURKEY_TEMP: 70.0}
 # Store raw temperature data with timestamps
-temperature_history = deque(
-    maxlen=3600
-)  # Increased size to store more raw data before decimation
+temperature_history = deque(maxlen=RAW_HISTORY_SECONDS)
 
-# Store decimated data for different time windows
+# Store decimated data for different time windows (name, duration_s, interval_s)
+_DECIMATION_WINDOWS = [
+    ("5min", 5 * MINUTE, 1 * SECOND),
+    ("30min", 30 * MINUTE, 3 * SECOND),
+    ("2hr", 2 * HOUR, 10 * SECOND),
+    ("8hr", 8 * HOUR, 40 * SECOND),
+]
+_DECIMATED_RESPONSE_WINDOWS = [name for (name, _, _) in _DECIMATION_WINDOWS if name != "5min"]
 decimated_history = {
-    "5min": {"data": deque(maxlen=300), "interval": 1},  # 5 minutes at 1s resolution
-    "30min": {"data": deque(maxlen=500), "interval": 3},  # 25 minutes at 3s resolution
-    "2hr": {"data": deque(maxlen=600), "interval": 10},  # 1.7 hours at 10s resolution
-    "8hr": {"data": deque(maxlen=720), "interval": 40},  # 8 hours at 40s resolution
+    name: {"data": deque(maxlen=max(1, duration // interval)), "interval": interval}
+    for name, duration, interval in _DECIMATION_WINDOWS
 }
 
 # Track the last time we added to each decimated history
@@ -48,11 +72,11 @@ decimated_last_update = {key: 0 for key in decimated_history}
 data_lock = threading.Lock()
 
 control_status = {
-    "running": False,
-    "target_temp": 350.0,
-    "burner_on": False,
-    "pid_output": 0.0,
-    "last_toggle_time": 0,
+    KEY_RUNNING: False,
+    KEY_TARGET_TEMP: DEFAULT_TARGET_TEMP,
+    KEY_BURNER_ON: False,
+    KEY_PID_OUTPUT: 0.0,
+    KEY_LAST_TOGGLE_TIME: 0,
 }
 control_lock = threading.Lock()
 
@@ -65,11 +89,11 @@ threads_lock = threading.Lock()
 # Ki: Lowered to build the integral term slowly, preventing overshoot in a high thermal mass system.
 # Kd: Increased significantly to act as a strong brake, anticipating and damping rapid temperature changes.
 pid = PID(
-    Kp=5.0,
-    Ki=0.05,
-    Kd=20.0,
-    setpoint=control_status["target_temp"],
-    output_limits=(0, 100),
+    Kp=PID_KP,
+    Ki=PID_KI,
+    Kd=PID_KD,
+    setpoint=control_status[KEY_TARGET_TEMP],
+    output_limits=(PID_OUT_MIN, PID_OUT_MAX),
 )
 
 
@@ -178,21 +202,19 @@ def get_temperatures():
 def get_temperature_history():
     with data_lock:
         current_time = time.time()
-        five_min_ago = (current_time - 300) * 1000  # 5 minutes ago in ms
+        five_min_ago_ms = current_time * 1000 - FIVE_MINUTES_MS
 
         # Get recent high-resolution data
-        recent_data = [
-            entry for entry in temperature_history if entry["time"] >= five_min_ago
-        ]
+        recent_data = [entry for entry in temperature_history if entry[KEY_TIME] >= five_min_ago_ms]
 
         # Get decimated historical data
         historical_data = []
-        for key in ["30min", "2hr", "8hr"]:
+        for key in _DECIMATED_RESPONSE_WINDOWS:
             historical_data.extend(decimated_history[key]["data"])
 
         # Combine and sort all data
         all_data = recent_data + historical_data
-        all_data.sort(key=lambda x: x["time"])
+        all_data.sort(key=lambda x: x[KEY_TIME])
 
         return jsonify(all_data)
 
@@ -214,7 +236,7 @@ def set_target_temp():
     temp = request.json.get("temp")
     if temp is not None:
         with control_lock:
-            control_status["target_temp"] = float(temp)
+            control_status[KEY_TARGET_TEMP] = float(temp)
         app.logger.info(f"Target temperature set to: {temp}°F")
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid temperature"})
@@ -223,10 +245,10 @@ def set_target_temp():
 @app.route("/toggle_run_state", methods=["POST"])
 def toggle_run_state():
     with control_lock:
-        control_status["running"] = not control_status["running"]
-        new_state = "RUNNING" if control_status["running"] else "STOPPED"
+        control_status[KEY_RUNNING] = not control_status[KEY_RUNNING]
+        new_state = "RUNNING" if control_status[KEY_RUNNING] else "STOPPED"
     app.logger.info(f"System state changed to: {new_state}")
-    return jsonify({"success": True, "running": control_status["running"]})
+    return jsonify({"success": True, "running": control_status[KEY_RUNNING]})
 
 
 if __name__ == "__main__":
