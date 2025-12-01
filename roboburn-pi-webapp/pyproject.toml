@@ -1,0 +1,39 @@
+[project]
+name = "roboburn-webapp"
+version = "0.1.0"
+description = "Web interface for RoboBurn temperature control system"
+authors = [
+    { name = "Andrew Malota", email = "2bitoperations@gmail.com" },
+]
+requires-python = ">=3.8"
+dependencies = [
+    "flask~=3.0.0",
+    "simple-pid~=2.0.0",
+    "numpy~=1.24.0",
+    "webassets~=2.0.0",
+    "flask-assets~=2.0.0",
+ ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest~=7.0.0",
+    "ruff~=0.5.0"
+]
+
+# -----------------------------
+# Code quality tool configuration
+# -----------------------------
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+extend-exclude = ["node_modules", "static/gen", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = []
+fixable = ["I"]
+
+[tool.ruff.format]
+quote-style = "preserve"
+indent-style = "space"

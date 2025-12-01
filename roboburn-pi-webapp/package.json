@@ -1,0 +1,11 @@
+{
+  "name": "roboburn-webapp",
+  "version": "1.0.0",
+  "description": "Frontend dependencies for RoboBurn",
+  "dependencies": {
+    "bootstrap": "^5.3.3",
+    "chart.js": "^4.4.1",
+    "chartjs-adapter-date-fns": "^3.0.0",
+    "chartjs-plugin-annotation": "^3.0.1"
+  }
+}

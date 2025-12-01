@@ -1,0 +1,396 @@
+<!--
+Mobile-friendly UI for RoboBurn Pi Webapp.
+
+- Two equal-sized displays for oil and turkey temperature.
+- Touch-friendly input for oil target temperature.
+- STOP button.
+- Temperature graph for oil and turkey.
+- Scrollable log window.
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RoboBurn</title>
+    {% assets "css_all" %}
+    <link rel="stylesheet" href="{{ ASSET_URL }}">
+    {% endassets %}
+    <style>
+      body, html {
+        height: 100%;
+      }
+      .container-fluid {
+        height: 100%;
+      }
+      .temperature-display {
+        border: 1px solid #ccc;
+        padding: 20px;
+        text-align: center;
+        font-size: 2em;
+        transition: background-color 0.5s ease;
+      }
+      .temperature-display.stale-data {
+        background-color: yellow;
+      }
+      .temperature-display.burner-on {
+        background-color: #ffcccc; /* Light red */
+      }
+      .temp-label {
+        font-size: 0.5em; /* Smaller label font */
+      }
+      .log-window {
+        height: 200px; /* Default height for mobile */
+        max-height: 50vh; /* Prevent excessive growth on desktop */
+        border: 1px solid #ccc;
+        overflow-y: auto; /* Change to auto to only show scrollbar when needed */
+        padding: 10px;
+        background-color: #f8f9fa;
+        font-family: monospace;
+        font-size: 0.8rem; /* Smaller font */
+      }
+      .log-window div {
+        margin-bottom: 2px; /* Reduce spacing between lines */
+      }
+      @media (min-width: 992px) { /* lg breakpoint */
+        .log-window {
+          height: 100%;
+          max-height: 100%; /* Ensure it respects parent container */
+        }
+        /* Ensure the flex column doesn't grow beyond viewport */
+        .d-flex.flex-column {
+          max-height: 100vh;
+          overflow: hidden;
+        }
+      }
+      .numpad-btn {
+        font-size: 1.5em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container-fluid h-100">
+      <div class="row h-100" style="min-height: 0;">
+        <!-- Left Column: Controls and Graph -->
+        <div class="col-lg-8 d-flex flex-column py-3" style="min-height: 0;">
+          <div class="row flex-shrink-0">
+            <div class="col-6">
+              <div class="temperature-display" id="oil-display-container">
+                <div class="temp-label">Oil Temp</div>
+                <div id="oil-temp">--°F</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="temperature-display" id="turkey-display-container">
+                <div class="temp-label">Turkey Temp</div>
+                <div id="turkey-temp">--°F</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mt-3 align-items-end flex-shrink-0">
+            <div class="col-6">
+              <label for="target-temp" class="form-label">Target Oil Temp</label>
+              <input type="number" class="form-control" id="target-temp" value="350" readonly data-bs-toggle="modal" data-bs-target="#numpad-modal">
+            </div>
+            <div class="col-6 d-grid">
+              <button type="button" class="btn btn-lg" id="run-stop-button"></button>
+            </div>
+          </div>
+
+          <div class="row mt-3 flex-grow-1" style="min-height: 0;">
+            <div class="col-12 h-100">
+              <canvas id="temp-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Log Window -->
+        <div class="col-lg-4 d-flex flex-column py-3" style="min-height: 0;">
+          <h5 class="flex-shrink-0">Logs</h5>
+          <div class="log-window flex-grow-1" id="log-window" style="min-height: 0;">
+            <!-- Log messages will be inserted here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Numpad Modal -->
+    <div class="modal fade" id="numpad-modal" tabindex="-1" aria-labelledby="numpad-modal-label" aria-hidden="true">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="numpad-modal-label">Enter Temperature</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="text" class="form-control text-end mb-2" id="numpad-display" readonly>
+            <div class="row g-2">
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('1')">1</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('2')">2</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('3')">3</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('4')">4</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('5')">5</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('6')">6</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('7')">7</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('8')">8</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('9')">9</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="clearDisplay()">C</button></div>
+              <div class="col-4"><button class="btn btn-light w-100 numpad-btn" onclick="appendToDisplay('0')">0</button></div>
+              <div class="col-4"><button class="btn btn-primary w-100 numpad-btn" onclick="setTemperature()">Set</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% assets "js_all" %}
+    <script src="{{ ASSET_URL }}"></script>
+    {% endassets %}
+    <script>
+      const oilTempDisplay = document.getElementById('oil-temp');
+      const turkeyTempDisplay = document.getElementById('turkey-temp');
+      const oilDisplayContainer = document.getElementById('oil-display-container');
+      const turkeyDisplayContainer = document.getElementById('turkey-display-container');
+      const logWindow = document.getElementById('log-window');
+      const runStopButton = document.getElementById('run-stop-button');
+      const targetTempInput = document.getElementById('target-temp');
+      
+      const ctx = document.getElementById('temp-chart');
+      const tempChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'Oil Temp',
+            data: [],
+            borderColor: 'red',
+            yAxisID: 'y-oil',
+            fill: false
+          }, {
+            label: 'Turkey Temp',
+            data: [],
+            borderColor: 'green',
+            yAxisID: 'y-turkey',
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: {
+              type: 'time',
+              time: { unit: 'minute' },
+              title: { display: true, text: 'Time' }
+            },
+            'y-oil': {
+              type: 'linear',
+              position: 'left',
+              title: { display: true, text: 'Oil Temp (°F)', color: 'red' },
+              ticks: { color: 'red' }
+            },
+            'y-turkey': {
+              type: 'linear',
+              position: 'right',
+              title: { display: true, text: 'Turkey Temp (°F)', color: 'green' },
+              ticks: { color: 'green' },
+              grid: { drawOnChartArea: false }
+            }
+          },
+          plugins: {
+            annotation: {
+              annotations: {
+                targetLine: {
+                  type: 'line',
+                  yMin: 350,
+                  yMax: 350,
+                  yScaleID: 'y-oil',
+                  borderColor: 'black',
+                  borderWidth: 2,
+                  borderDash: [10, 5],
+                  label: {
+                    content: 'Target',
+                    enabled: true,
+                    position: 'start'
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      let lastFetchTime = Date.now();
+
+      function decimateHistory(history) {
+        if (history.length < 300) return history;
+
+        const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+        const recentData = history.filter(p => p.time >= fiveMinutesAgo);
+        const oldData = history.filter(p => p.time < fiveMinutesAgo);
+
+        const decimatedOldData = [];
+        let lastKeptTimestamp = 0;
+        for (const point of oldData) {
+          if (point.time - lastKeptTimestamp >= 30000) {
+            decimatedOldData.push(point);
+            lastKeptTimestamp = point.time;
+          }
+        }
+        if (oldData.length > 0 && decimatedOldData[decimatedOldData.length - 1] !== oldData[oldData.length - 1]) {
+            decimatedOldData.push(oldData[oldData.length - 1]);
+        }
+
+        return decimatedOldData.concat(recentData);
+      }
+
+      function loadHistory() {
+        fetch('/temperature_history')
+          .then(response => response.json())
+          .then(fullHistory => {
+            const history = decimateHistory(fullHistory);
+            const oilData = history.map(item => ({ x: item.time, y: item.oil_temp }));
+            const turkeyData = history.map(item => ({ x: item.time, y: item.turkey_temp }));
+            
+            tempChart.data.datasets[0].data = oilData;
+            tempChart.data.datasets[1].data = turkeyData;
+            tempChart.update('none');
+          });
+      }
+
+      function updateTemperatures() {
+        fetch('/temperatures')
+          .then(response => response.ok ? response.json() : Promise.reject('Network response was not ok'))
+          .then(data => {
+            if (!data.time) return;
+
+            oilTempDisplay.textContent = data.oil_temp.toFixed(1) + '°F';
+            turkeyTempDisplay.textContent = data.turkey_temp.toFixed(1) + '°F';
+
+            const newDataPointOil = { x: data.time, y: data.oil_temp };
+            const newDataPointTurkey = { x: data.time, y: data.turkey_temp };
+
+            tempChart.data.datasets[0].data.push(newDataPointOil);
+            tempChart.data.datasets[1].data.push(newDataPointTurkey);
+
+            if (tempChart.data.datasets[0].data.length > 1800) {
+              tempChart.data.datasets[0].data.shift();
+              tempChart.data.datasets[1].data.shift();
+            }
+            tempChart.update('none');
+
+            lastFetchTime = Date.now();
+            oilDisplayContainer.classList.remove('stale-data');
+            turkeyDisplayContainer.classList.remove('stale-data');
+          })
+          .catch(error => console.error('Error fetching temperatures:', error));
+      }
+
+      function updateLogs() {
+        fetch('/logs')
+          .then(response => response.json())
+          .then(logs => {
+            if (logWindow.children.length !== logs.length) {
+              logWindow.innerHTML = '';
+              logs.forEach(log => {
+                const div = document.createElement('div');
+                div.textContent = log;
+                logWindow.appendChild(div);
+              });
+              logWindow.scrollTop = logWindow.scrollHeight;
+            }
+          });
+      }
+
+      function updateStatus() {
+        fetch('/status')
+          .then(response => response.json())
+          .then(data => {
+            if (data.running) {
+              runStopButton.textContent = 'STOP';
+              runStopButton.classList.remove('btn-success');
+              runStopButton.classList.add('btn-danger');
+            } else {
+              runStopButton.textContent = 'RUN';
+              runStopButton.classList.remove('btn-danger');
+              runStopButton.classList.add('btn-success');
+            }
+
+            if (data.burner_on) {
+              oilDisplayContainer.classList.add('burner-on');
+            } else {
+              oilDisplayContainer.classList.remove('burner-on');
+            }
+
+            targetTempInput.value = data.target_temp.toFixed(1);
+
+            tempChart.options.plugins.annotation.annotations.targetLine.yMin = data.target_temp;
+            tempChart.options.plugins.annotation.annotations.targetLine.yMax = data.target_temp;
+            tempChart.update();
+          })
+          .catch(error => console.error('Error fetching status:', error));
+      }
+
+      function toggleRunState() {
+        fetch('/toggle_run_state', { method: 'POST' })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              updateStatus();
+            }
+          })
+          .catch(error => console.error('Error toggling run state:', error));
+      }
+
+      function setTemperature() {
+        const newTemp = numpadDisplay.value;
+        if (newTemp) {
+          fetch('/set_target_temp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ temp: newTemp }),
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              targetTempInput.value = parseFloat(newTemp).toFixed(1);
+              numpadModal.hide();
+              updateStatus();
+            } else {
+              alert('Failed to set temperature: ' + (data.error || 'Unknown error'));
+            }
+          })
+          .catch(error => console.error('Error setting target temperature:', error));
+        }
+      }
+
+      function checkStaleData() {
+        if (Date.now() - lastFetchTime > 5000) {
+          oilDisplayContainer.classList.add('stale-data');
+          turkeyDisplayContainer.classList.add('stale-data');
+        }
+      }
+
+      runStopButton.addEventListener('click', toggleRunState);
+
+      const numpadDisplay = document.getElementById('numpad-display');
+      const numpadModal = new bootstrap.Modal(document.getElementById('numpad-modal'));
+
+      function appendToDisplay(value) { numpadDisplay.value += value; }
+      function clearDisplay() { numpadDisplay.value = ''; }
+
+      document.getElementById('numpad-modal').addEventListener('shown.bs.modal', () => {
+        numpadDisplay.value = '';
+        numpadDisplay.focus();
+      });
+
+      loadHistory();
+      updateStatus();
+      setInterval(updateTemperatures, 1000);
+      setInterval(updateLogs, 2000);
+      setInterval(updateStatus, 1000);
+      setInterval(checkStaleData, 1000);
+    </script>
+  </body>
+</html>
