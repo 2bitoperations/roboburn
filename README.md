@@ -5,22 +5,13 @@ Frying a turkey? Look no further.
 Brewing beer? Right here.
 Smoking a stuff or thing? Boom. This'll get er' done.
 
-The raspberry pi part of the code runs in python. It senses cooking fluid (air, oil, whatever,) temperature using a Type-K thermocouple, and turns on or off a relay that runs your heat system to keep everything toasty.
+The raspberry pi part of the code runs in python. It senses cooking fluid (air, oil, whatever,) temperature, and turns on or off a relay that runs your heat system to keep everything toasty.
 
 The Android part runs on your phone or tablet to change heating setpoints and graph the current temps and whatnot.
 
 # Hardware
 ## pi
-- MAX6675 SPI-connected Type-K Thermocouple Interface (two of them, one for the cooking fluid, one for the food.)
-  - got mine here: http://www.ebay.com/itm/MAX31855K-Single-ch-Type-K-Thermocouple-Breakout-270C-1372C-MAX6675-upgrade-/330866861746?ssPageName=ADME:L:OC:US:3160
-- Type-K Thermocouple (again, two of them.)
-  - got mine here: http://www.amazon.com/gp/product/B00843IKWK/ref=oh_aui_search_detailpage?ie=UTF8&psc=1
-  - they get angry if you let their sheaths touch. pick up some shrinkwrap to insulate them.
-- Some relay module appropriate for your heater.
-  - I use this one: http://www.amazon.com/gp/product/B00C59NOHK/ref=oh_aui_search_detailpage?ie=UTF8&psc=1
-- Other stuff:
-  - Dry boxes are nice. I like this one: http://www.amazon.com/gp/product/B002KENWZY/ref=oh_aui_search_detailpage?ie=UTF8&psc=1
-  - If you use a wifi dongle w/ your pi, you might want a powered USB hub.
+
 
 # Author's Notes:
 For frying a turkey, I use a burner control system inspired by this page: http://www.homebrewtalk.com/f253/gas-temperature-control-dummies-116632/
