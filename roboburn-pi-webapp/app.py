@@ -25,6 +25,11 @@ FIVE_MINUTES_MS = 5 * MINUTE * 1000
 RAW_HISTORY_SECONDS = 60 * MINUTE  # 1 hour of 1s samples
 LOG_MAX_LEN = 100
 DEFAULT_TARGET_TEMP = 350.0
+
+# PID Configuration for 5gal oil & 250k BTU burner
+# Kp: Lowered to reduce aggressive overcorrection with the high-power burner.
+# Ki: Lowered to build the integral term slowly, preventing overshoot in a high thermal mass system.
+# Kd: Increased significantly to act as a strong brake, anticipating and damping rapid temperature changes.
 PID_KP = 5.0
 PID_KI = 0.05
 PID_KD = 20.0
@@ -84,10 +89,6 @@ control_lock = threading.Lock()
 threads_started = False
 threads_lock = threading.Lock()
 
-# PID Configuration for 5gal oil & 250k BTU burner
-# Kp: Lowered to reduce aggressive overcorrection with the high-power burner.
-# Ki: Lowered to build the integral term slowly, preventing overshoot in a high thermal mass system.
-# Kd: Increased significantly to act as a strong brake, anticipating and damping rapid temperature changes.
 pid = PID(
     Kp=PID_KP,
     Ki=PID_KI,

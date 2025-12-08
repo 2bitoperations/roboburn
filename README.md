@@ -16,7 +16,7 @@ The Android part runs on your phone or tablet to change heating setpoints and gr
 # Author's Notes:
 For frying a turkey, I use a burner control system inspired by this page: http://www.homebrewtalk.com/f253/gas-temperature-control-dummies-116632/
 
-The system is a Honeywell burner controller driving an low pressure LP burner.
+The system is a Honeywell burner controller driving a low pressure LP burner.
  
 - Honeywell Y8610U controller/valve (includes LP conversion, be sure to install it.)
   - bought new old stock on eBay
