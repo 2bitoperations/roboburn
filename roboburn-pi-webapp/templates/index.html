@@ -149,6 +149,15 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
     <script src="{{ ASSET_URL }}"></script>
     {% endassets %}
     <script>
+      // Temperature conversion functions
+      function celsiusToFahrenheit(c) {
+        return (c * 9/5) + 32;
+      }
+
+      function fahrenheitToCelsius(f) {
+        return (f - 32) * 5/9;
+      }
+
       const oilTempDisplay = document.getElementById('oil-temp');
       const turkeyTempDisplay = document.getElementById('turkey-temp');
       const oilDisplayContainer = document.getElementById('oil-display-container');
@@ -264,11 +273,15 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
           .then(data => {
             if (!data.time) return;
 
-            oilTempDisplay.textContent = data.oil_temp.toFixed(1) + '°F';
-            turkeyTempDisplay.textContent = data.turkey_temp.toFixed(1) + '°F';
+            // Convert from Celsius to Fahrenheit for display
+            const oilTempF = celsiusToFahrenheit(data.oil_temp);
+            const turkeyTempF = celsiusToFahrenheit(data.turkey_temp);
+            
+            oilTempDisplay.textContent = oilTempF.toFixed(1) + '°F';
+            turkeyTempDisplay.textContent = turkeyTempF.toFixed(1) + '°F';
 
-            const newDataPointOil = { x: data.time, y: data.oil_temp };
-            const newDataPointTurkey = { x: data.time, y: data.turkey_temp };
+            const newDataPointOil = { x: data.time, y: oilTempF };
+            const newDataPointTurkey = { x: data.time, y: turkeyTempF };
 
             tempChart.data.datasets[0].data.push(newDataPointOil);
             tempChart.data.datasets[1].data.push(newDataPointTurkey);
@@ -322,10 +335,13 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
               oilDisplayContainer.classList.remove('burner-on');
             }
 
-            targetTempInput.value = data.target_temp.toFixed(1);
+            // Convert target temp from Celsius to Fahrenheit for display
+            const targetTempF = celsiusToFahrenheit(data.target_temp);
+            targetTempInput.value = targetTempF.toFixed(1);
 
-            tempChart.options.plugins.annotation.annotations.targetLine.yMin = data.target_temp;
-            tempChart.options.plugins.annotation.annotations.targetLine.yMax = data.target_temp;
+            // Update chart target line in Fahrenheit
+            tempChart.options.plugins.annotation.annotations.targetLine.yMin = targetTempF;
+            tempChart.options.plugins.annotation.annotations.targetLine.yMax = targetTempF;
             tempChart.update();
           })
           .catch(error => console.error('Error fetching status:', error));
@@ -343,17 +359,20 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       }
 
       function setTemperature() {
-        const newTemp = numpadDisplay.value;
-        if (newTemp) {
+        const newTempF = parseFloat(numpadDisplay.value);
+        if (!isNaN(newTempF)) {
+          // Convert from Fahrenheit to Celsius for the backend
+          const newTempC = fahrenheitToCelsius(newTempF);
           fetch(API.SET_TARGET, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ temp: newTemp }),
+            body: JSON.stringify({ temp: newTempC }),
           })
           .then(response => response.json())
           .then(data => {
             if (data.success) {
-              targetTempInput.value = parseFloat(newTemp).toFixed(1);
+              // Display the Fahrenheit value that was just set
+              targetTempInput.value = newTempF.toFixed(1);
               numpadModal.hide();
               updateStatus();
             } else {

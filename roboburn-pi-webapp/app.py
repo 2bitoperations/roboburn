@@ -25,7 +25,7 @@ HOUR = 60 * MINUTE
 FIVE_MINUTES_MS = 5 * MINUTE * 1000
 RAW_HISTORY_SECONDS = 60 * MINUTE  # 1 hour of 1s samples
 LOG_MAX_LEN = 100
-DEFAULT_TARGET_TEMP = 350.0
+DEFAULT_TARGET_TEMP = 176.7  # 350°F in Celsius
 
 # PID Configuration for 5gal oil & 250k BTU burner
 # Kp: Lowered to reduce aggressive overcorrection with the high-power burner.
@@ -56,7 +56,7 @@ class DequeHandler(logging.Handler):
 
 
 # --- Data Structures & PID Controller ---
-temperature_data = {KEY_OIL_TEMP: 70.0, KEY_TURKEY_TEMP: 70.0}
+temperature_data = {KEY_OIL_TEMP: 21.1, KEY_TURKEY_TEMP: 21.1}  # 70°F in Celsius
 # Store raw temperature data with timestamps
 temperature_history = deque(maxlen=RAW_HISTORY_SECONDS)
 
