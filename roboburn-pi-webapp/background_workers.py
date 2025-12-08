@@ -23,20 +23,33 @@ def derive_coefficients(data):
     L = [math.log(r) for r, t in data]
     Y = [1.0 / ((t - 32.0) * 5.0 / 9.0 + 273.15) for r, t in data]
 
-    # Solve linear system for A, B, C (Determinant method for 3x3)
-    # Eq: A + B*L + C*L^3 = 1/T
-    D  = (L[0] - L[1]) * (L[1]**3 - L[2]**3) - (L[1] - L[2]) * (L[0]**3 - L[1]**3)
+    # Calculate differences
+    y2_y1 = Y[1] - Y[0]
+    y3_y1 = Y[2] - Y[0]
+    l2_l1 = L[1] - L[0]
+    l3_l1 = L[2] - L[0]
 
-    # Calculate C
-    inv_T_diff1 = Y[0] - Y[1]
-    inv_T_diff2 = Y[1] - Y[2]
-    C = (inv_T_diff1 * (L[1] - L[2]) - inv_T_diff2 * (L[0] - L[1])) / D
+    # Solve for C using the standard reduced form
+    # C = ( (Y3-Y1)*(L2-L1) - (Y2-Y1)*(L3-L1) ) / ( (L3^3 - L1^3)*(L2-L1) - (L2^3 - L1^3)*(L3-L1) )
 
-    # Calculate B
-    B = (inv_T_diff1 - C * (L[0]**3 - L[1]**3)) / (L[0] - L[1])
+    # Pre-compute powers to keep lines clean
+    l1_3 = L[0]**3
+    l2_3 = L[1]**3
+    l3_3 = L[2]**3
 
-    # Calculate A
-    A = Y[0] - B * L[0] - C * L[0]**3
+    # Numerator and Denominator for C
+    # Note: Using point 0 as the anchor/pivot
+    gamma_2 = (Y[1] - Y[0]) / (L[1] - L[0])
+    gamma_3 = (Y[2] - Y[0]) / (L[2] - L[0])
+
+    # This form is much more numerically stable and less prone to sign flips
+    C = (gamma_3 - gamma_2) / ( (l3_3 - l1_3)/(L[2] - L[0]) - (l2_3 - l1_3)/(L[1] - L[0]) )
+
+    # Solve for B
+    B = gamma_2 - C * ( (l2_3 - l1_3) / (L[1] - L[0]) )
+
+    # Solve for A
+    A = Y[0] - B * L[0] - C * l1_3
 
     return A, B, C
 
