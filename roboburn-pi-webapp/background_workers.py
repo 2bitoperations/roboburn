@@ -100,11 +100,17 @@ def temperature_worker(
     adc_chan_oil = AnalogIn(ads, ADS.P0)
     adc_chan_turkey = AnalogIn(ads, ADS.P1)
 
-    logger.info("ADS open, current reading oil {adc_chan_oil.voltage}v, turkey {adc_chan_turkey.voltage}")
+    logger.info(f"ADS open, current reading oil {adc_chan_oil.voltage}v, turkey {adc_chan_turkey.voltage}")
     while True:
         with data_lock:
-            temperature_data["oil_temp"] = get_temp_celsius(adc_chan_oil.voltage)
-            temperature_data["turkey_temp"] = get_temp_celsius(adc_chan_turkey.voltage)
+            # Store raw voltages for debugging
+            oil_voltage = adc_chan_oil.voltage
+            turkey_voltage = adc_chan_turkey.voltage
+            
+            temperature_data["oil_temp"] = get_temp_celsius(oil_voltage)
+            temperature_data["turkey_temp"] = get_temp_celsius(turkey_voltage)
+            temperature_data["oil_voltage"] = oil_voltage
+            temperature_data["turkey_voltage"] = turkey_voltage
 
             current_time = time.time()
             timestamp = current_time * 1000  # ms for frontend

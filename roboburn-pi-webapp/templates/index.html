@@ -66,6 +66,11 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       .numpad-btn {
         font-size: 1.5em;
       }
+      .voltage {
+        font-size: 0.7em;
+        color: #666;
+        font-family: monospace;
+      }
       .min-h-0 { min-height: 0; }
     </style>
   </head>
@@ -79,12 +84,14 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
               <div class="temperature-display" id="oil-display-container">
                 <div class="temp-label">Oil Temp</div>
                 <div id="oil-temp">--°F</div>
+                <div class="voltage" id="oil-voltage">--V</div>
               </div>
             </div>
             <div class="col-6">
               <div class="temperature-display" id="turkey-display-container">
                 <div class="temp-label">Turkey Temp</div>
                 <div id="turkey-temp">--°F</div>
+                <div class="voltage" id="turkey-voltage">--V</div>
               </div>
             </div>
           </div>
@@ -160,6 +167,8 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
 
       const oilTempDisplay = document.getElementById('oil-temp');
       const turkeyTempDisplay = document.getElementById('turkey-temp');
+      const oilVoltageDisplay = document.getElementById('oil-voltage');
+      const turkeyVoltageDisplay = document.getElementById('turkey-voltage');
       const oilDisplayContainer = document.getElementById('oil-display-container');
       const turkeyDisplayContainer = document.getElementById('turkey-display-container');
       const logWindow = document.getElementById('log-window');
@@ -279,6 +288,14 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
             
             oilTempDisplay.textContent = oilTempF.toFixed(1) + '°F';
             turkeyTempDisplay.textContent = turkeyTempF.toFixed(1) + '°F';
+            
+            // Update voltage displays if available
+            if (data.oil_voltage !== undefined) {
+              oilVoltageDisplay.textContent = data.oil_voltage.toFixed(3) + 'V';
+            }
+            if (data.turkey_voltage !== undefined) {
+              turkeyVoltageDisplay.textContent = data.turkey_voltage.toFixed(3) + 'V';
+            }
 
             const newDataPointOil = { x: data.time, y: oilTempF };
             const newDataPointTurkey = { x: data.time, y: turkeyTempF };
