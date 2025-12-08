@@ -22,57 +22,105 @@ class TemperatureReading:
         return self.temperature_celsius is not None and self.resistance_ohms is not None
 
 # measured points from weber igrill ambient probe (these are cheap and plentiful)
-# Point 1: 33.1F, 324.7k
-# Point 2: 67.5F, 89k
-# Point 3: 170.6F, 13.26k
+# resistance in ohms, temp in F
 CALIBRATION_DATA = [
+    (303950, 32.9),
     (324700, 33.1),
     (89000, 67.5),
-    (13260, 170.6)
+    (27810, 134.2),
+    (13260, 170.6),
 ]
 
 def derive_coefficients(data):
-    """Solves Steinhart-Hart A, B, C from 3 resistance/temp points."""
-    # Convert temps to Kelvin and take ln(R)
-    L = [math.log(r) for r, t in data]
-    Y = [1.0 / ((t - 32.0) * 5.0 / 9.0 + 273.15) for r, t in data]
+    """
+    Fits Steinhart-Hart A, B, C coefficients to N data points using
+    Least Squares Regression. (Pure Python, no numpy).
 
-    # Calculate differences
-    y2_y1 = Y[1] - Y[0]
-    y3_y1 = Y[2] - Y[0]
-    l2_l1 = L[1] - L[0]
-    l3_l1 = L[2] - L[0]
+    Model: 1/T = A + B*ln(R) + C*(ln(R)^3)
+    """
+    N = len(data)
+    if N < 3:
+        raise ValueError("Need at least 3 data points for Steinhart-Hart regression.")
 
-    # Solve for C using the standard reduced form
-    # C = ( (Y3-Y1)*(L2-L1) - (Y2-Y1)*(L3-L1) ) / ( (L3^3 - L1^3)*(L2-L1) - (L2^3 - L1^3)*(L3-L1) )
+    # 1. Prepare the Sums for the Normal Equation Matrix (X.T * X)
+    # We are solving Ax = b where x is [A, B, C]
+    sum_1 = N
+    sum_L = 0.0    # Sum of ln(R)
+    sum_L2 = 0.0   # Sum of ln(R)^2
+    sum_L3 = 0.0   # Sum of ln(R)^3
+    sum_L4 = 0.0
+    sum_L6 = 0.0
 
-    # Pre-compute powers to keep lines clean
-    l1_3 = L[0]**3
-    l2_3 = L[1]**3
-    l3_3 = L[2]**3
+    sum_Y = 0.0    # Sum of 1/T
+    sum_YL = 0.0   # Sum of (1/T) * ln(R)
+    sum_YL3 = 0.0  # Sum of (1/T) * ln(R)^3
 
-    # Numerator and Denominator for C
-    # Note: Using point 0 as the anchor/pivot
-    gamma_2 = (Y[1] - Y[0]) / (L[1] - L[0])
-    gamma_3 = (Y[2] - Y[0]) / (L[2] - L[0])
+    for r, t_f in data:
+        # Convert T to Kelvin
+        t_k = (t_f - 32.0) * 5.0 / 9.0 + 273.15
+        y = 1.0 / t_k
+        L = math.log(r)
 
-    # This form is much more numerically stable and less prone to sign flips
-    C = (gamma_3 - gamma_2) / ( (l3_3 - l1_3)/(L[2] - L[0]) - (l2_3 - l1_3)/(L[1] - L[0]) )
+        # Accumulate powers of L
+        L2 = L * L
+        L3 = L2 * L
+        L4 = L2 * L2
+        L6 = L3 * L3
 
-    # Solve for B
-    B = gamma_2 - C * ( (l2_3 - l1_3) / (L[1] - L[0]) )
+        sum_L += L
+        sum_L2 += L2
+        sum_L3 += L3
+        sum_L4 += L4
+        sum_L6 += L6
 
-    # Solve for A
-    A = Y[0] - B * L[0] - C * l1_3
+        # Accumulate cross terms with Y
+        sum_Y += y
+        sum_YL += y * L
+        sum_YL3 += y * L3
 
+    # 2. Construct the Matrix (Symmetric) and Vector
+    # Matrix M = [[sum_1, sum_L, sum_L3],
+    #             [sum_L, sum_L2, sum_L4],
+    #             [sum_L3, sum_L4, sum_L6]]
+    M = [
+        [sum_1, sum_L,  sum_L3],
+        [sum_L, sum_L2, sum_L4],
+        [sum_L3, sum_L4, sum_L6]
+    ]
+
+    # Vector V = [sum_Y, sum_YL, sum_YL3]
+    V = [sum_Y, sum_YL, sum_YL3]
+
+    # 3. Solve M * [A,B,C] = V using Gaussian Elimination (Standard Linear Algebra)
+    # We pivot to solve for unknowns.
+
+    n_vars = 3
+    # Forward Elimination
+    for i in range(n_vars):
+        # Pivot
+        pivot = M[i][i]
+        for j in range(i + 1, n_vars):
+            factor = M[j][i] / pivot
+            V[j] -= factor * V[i]
+            for k in range(i, n_vars):
+                M[j][k] -= factor * M[i][k]
+
+    # Back Substitution
+    solution = [0.0] * n_vars
+    for i in range(n_vars - 1, -1, -1):
+        sum_ax = sum(M[i][j] * solution[j] for j in range(i + 1, n_vars))
+        solution[i] = (V[i] - sum_ax) / M[i][i]
+
+    # Unpack coefficients
+    A, B, C = solution
     return A, B, C
 
 # Calculate defaults based on probe
 try:
     DEF_A, DEF_B, DEF_C = derive_coefficients(CALIBRATION_DATA)
+    print(f"New Coeffs -> A: {DEF_A:.9f}, B: {DEF_B:.9f}, C: {DEF_C:.9f}")
 except Exception as e:
-    logger.error(f"Error calculating coefficients: {e}")
-    DEF_A, DEF_B, DEF_C = 0, 0, 0
+    print(f"Calibration failed: {e}")
 
 def get_temp_celsius(voltage: float, r_fixed: float = 10000, system_voltage: float = 3.3,
                      sh_a: float = DEF_A, sh_b: float = DEF_B, sh_c: float = DEF_C) -> TemperatureReading:
