@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import time
 import threading
 import board
@@ -6,6 +7,19 @@ import adafruit_ads1x15.ads1115 as ADS
 from adafruit_ads1x15.analog_in import AnalogIn
 import math
 from gpiozero import OutputDevice
+from typing import Optional
+
+
+@dataclass
+class TemperatureReading:
+    """A class to hold temperature and resistance readings from a thermistor."""
+    temperature_celsius: Optional[float]
+    resistance_ohms: Optional[float]
+    
+    @property
+    def is_valid(self) -> bool:
+        """Check if the reading is valid (both temperature and resistance are not None)."""
+        return self.temperature_celsius is not None and self.resistance_ohms is not None
 
 # measured points from weber igrill ambient probe (these are cheap and plentiful)
 # Point 1: 33.1F, 324.7k
@@ -60,38 +74,39 @@ except Exception as e:
     logger.error(f"Error calculating coefficients: {e}")
     DEF_A, DEF_B, DEF_C = 0, 0, 0
 
-def get_temp_celsius(voltage, r_fixed=10000, system_voltage=3.3,
-                     sh_a=DEF_A, sh_b=DEF_B, sh_c=DEF_C):
+def get_temp_celsius(voltage: float, r_fixed: float = 10000, system_voltage: float = 3.3,
+                     sh_a: float = DEF_A, sh_b: float = DEF_B, sh_c: float = DEF_C) -> TemperatureReading:
     """
     Converts measured Voltage to Celsius using Steinhart-Hart equation.
 
     Args:
-        voltage (float): The actual voltage measured at the pin (e.g., 2.15).
-        r_fixed (float): The fixed resistor value in Ohms (default 10k).
-        system_voltage (float): The voltage powering the divider (default 3.3V).
-        sh_a, sh_b, sh_c (float): Thermistor Steinhart-Hart coefficients.
+        voltage: The actual voltage measured at the pin (e.g., 2.15).
+        r_fixed: The fixed resistor value in Ohms (default 10k).
+        system_voltage: The voltage powering the divider (default 3.3V).
+        sh_a, sh_b, sh_c: Thermistor Steinhart-Hart coefficients.
 
     Returns:
-        float: Temperature in Celsius.
+        TemperatureReading: An object containing temperature in Celsius and resistance in ohms.
     """
-    # 1. Safety check: voltage cannot be 0 (infinite resistance)
-    #    or equal to system_voltage (0 resistance/short).
+    # Safety check: voltage cannot be 0 (infinite resistance)
+    # or equal to system_voltage (0 resistance/short).
     if voltage <= 0 or voltage >= system_voltage:
-        return None
+        return TemperatureReading(temperature_celsius=None, resistance_ohms=None)
 
-    # 2. Calculate Resistance of Thermistor
+    # Calculate Resistance of Thermistor
     # Formula derived from V_out = V_in * (R_therm / (R_fixed + R_therm))
     # Becomes: R_therm = R_fixed * (V_out / (V_in - V_out))
     r_thermistor = r_fixed * (voltage / (system_voltage - voltage))
 
-    # 3. Apply Steinhart-Hart Equation
-    ln_r = math.log(r_thermistor)
-    inv_temp_kelvin = sh_a + (sh_b * ln_r) + (sh_c * (ln_r ** 3))
+    # Apply Steinhart-Hart Equation
+    try:
+        ln_r = math.log(r_thermistor)
+        inv_temp_kelvin = sh_a + (sh_b * ln_r) + (sh_c * (ln_r ** 3))
+        temp_celsius = (1.0 / inv_temp_kelvin) - 273.15
+    except (ValueError, ZeroDivisionError):
+        return TemperatureReading(temperature_celsius=None, resistance_ohms=None)
 
-    # 4. Convert Kelvin to Celsius
-    temp_celsius = (1.0 / inv_temp_kelvin) - 273.15
-
-    return temp_celsius
+    return TemperatureReading(temperature_celsius=temp_celsius, resistance_ohms=r_thermistor)
 
 def temperature_worker(
     logger,
@@ -116,14 +131,19 @@ def temperature_worker(
     logger.info(f"ADS open, current reading oil {adc_chan_oil.voltage}v, turkey {adc_chan_turkey.voltage}")
     while True:
         with data_lock:
-            # Store raw voltages for debugging
+            # Get temperature and resistance for both probes
             oil_voltage = adc_chan_oil.voltage
             turkey_voltage = adc_chan_turkey.voltage
             
-            temperature_data["oil_temp"] = get_temp_celsius(oil_voltage)
-            temperature_data["turkey_temp"] = get_temp_celsius(turkey_voltage)
+            oil_reading = get_temp_celsius(oil_voltage)
+            turkey_reading = get_temp_celsius(turkey_voltage)
+            
+            temperature_data["oil_temp"] = oil_reading.temperature_celsius
+            temperature_data["turkey_temp"] = turkey_reading.temperature_celsius
             temperature_data["oil_voltage"] = oil_voltage
             temperature_data["turkey_voltage"] = turkey_voltage
+            temperature_data["oil_resistance"] = oil_reading.resistance_ohms
+            temperature_data["turkey_resistance"] = turkey_reading.resistance_ohms
 
             current_time = time.time()
             timestamp = current_time * 1000  # ms for frontend

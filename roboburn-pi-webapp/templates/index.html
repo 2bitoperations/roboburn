@@ -85,6 +85,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
                 <div class="temp-label">Oil Temp</div>
                 <div id="oil-temp">--°F</div>
                 <div class="voltage" id="oil-voltage">--V</div>
+                <div class="resistance" id="oil-resistance" style="display: none;">--Ω</div>
               </div>
             </div>
             <div class="col-6">
@@ -92,6 +93,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
                 <div class="temp-label">Turkey Temp</div>
                 <div id="turkey-temp">--°F</div>
                 <div class="voltage" id="turkey-voltage">--V</div>
+                <div class="resistance" id="turkey-resistance" style="display: none;">--Ω</div>
               </div>
             </div>
           </div>
@@ -99,7 +101,10 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
           <div class="row mt-3 align-items-end flex-shrink-0">
             <div class="col-6">
               <label for="target-temp" class="form-label">Target Oil Temp</label>
-              <input type="number" class="form-control" id="target-temp" value="350" readonly data-bs-toggle="modal" data-bs-target="#numpad-modal">
+              <div class="input-group">
+                <input type="number" class="form-control" id="target-temp" value="350" readonly data-bs-toggle="modal" data-bs-target="#numpad-modal">
+                <button type="button" class="btn btn-outline-secondary" id="debug-button" title="Toggle voltage display">DEBUG</button>
+              </div>
             </div>
             <div class="col-6 d-grid">
               <button type="button" class="btn btn-lg" id="run-stop-button"></button>
@@ -174,6 +179,28 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       const logWindow = document.getElementById('log-window');
       const runStopButton = document.getElementById('run-stop-button');
       const targetTempInput = document.getElementById('target-temp');
+      const debugButton = document.getElementById('debug-button');
+      let debugMode = false;
+
+      // Toggle debug mode
+      debugButton.addEventListener('click', function() {
+        debugMode = !debugMode;
+        this.classList.toggle('btn-outline-secondary', !debugMode);
+        this.classList.toggle('btn-primary', debugMode);
+        
+        // Toggle debug displays
+        const debugElements = document.querySelectorAll('.voltage, .resistance');
+        debugElements.forEach(display => {
+          display.style.display = debugMode ? 'block' : 'none';
+        });
+      });
+      
+      // Initially hide debug elements
+      document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.voltage, .resistance').forEach(display => {
+          display.style.display = 'none';
+        });
+      });
       
       const ctx = document.getElementById('temp-chart');
       const tempChart = new Chart(ctx, {
@@ -291,10 +318,22 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
             
             // Update voltage displays if available
             if (data.oil_voltage !== undefined) {
-              oilVoltageDisplay.textContent = data.oil_voltage.toFixed(3) + 'V';
+              oilVoltageDisplay.textContent = `${data.oil_voltage.toFixed(3)}V`;
             }
             if (data.turkey_voltage !== undefined) {
-              turkeyVoltageDisplay.textContent = data.turkey_voltage.toFixed(3) + 'V';
+              turkeyVoltageDisplay.textContent = `${data.turkey_voltage.toFixed(3)}V`;
+            }
+            if (data.oil_resistance !== undefined) {
+              const resistance = data.oil_resistance;
+              const unit = resistance >= 1000 ? 'kΩ' : 'Ω';
+              const value = resistance >= 1000 ? (resistance / 1000).toFixed(2) : Math.round(resistance);
+              oilResistanceDisplay.textContent = `${value}${unit}`;
+            }
+            if (data.turkey_resistance !== undefined) {
+              const resistance = data.turkey_resistance;
+              const unit = resistance >= 1000 ? 'kΩ' : 'Ω';
+              const value = resistance >= 1000 ? (resistance / 1000).toFixed(2) : Math.round(resistance);
+              turkeyResistanceDisplay.textContent = `${value}${unit}`;
             }
 
             const newDataPointOil = { x: data.time, y: oilTempF };
