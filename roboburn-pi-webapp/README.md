@@ -45,6 +45,8 @@ uv run pytest
    ```bash
    git clone https://github.com/yourusername/roboburn-pi-webapp.git
    cd roboburn-pi-webapp
+   
+   sudo apt install swig uv npm liblgpio-dev
    ```
 
 2. **Set up Python environment with uv**
