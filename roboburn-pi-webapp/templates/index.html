@@ -234,8 +234,18 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
         SET_TARGET: '/set_target_temp'
       };
 
+      function getChartPixelWidth() {
+        const rect = ctx.getBoundingClientRect ? ctx.getBoundingClientRect() : null;
+        return Math.floor((rect && rect.width) || ctx.clientWidth || ctx.offsetWidth || ctx.width || 600);
+      }
+
+      function getPointBudget() {
+        return Math.max(1, Math.floor(getChartPixelWidth() / 2));
+      }
+
       function loadHistory() {
-        fetch(API.HISTORY)
+        const count = getPointBudget();
+        fetch(`${API.HISTORY}?count=${count}`)
           .then(response => response.json())
           .then(history => {
             const oilData = history.map(item => ({ x: item.time, y: item.oil_temp }));
@@ -248,6 +258,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       }
 
       function updateTemperatures() {
+        const budget = getPointBudget();
         fetch(API.TEMPS)
           .then(response => response.ok ? response.json() : Promise.reject('Network response was not ok'))
           .then(data => {
@@ -262,7 +273,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
             tempChart.data.datasets[0].data.push(newDataPointOil);
             tempChart.data.datasets[1].data.push(newDataPointTurkey);
 
-            if (tempChart.data.datasets[0].data.length > MAX_POINTS) {
+            while (tempChart.data.datasets[0].data.length > budget) {
               tempChart.data.datasets[0].data.shift();
               tempChart.data.datasets[1].data.shift();
             }
@@ -385,6 +396,13 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       setInterval(updateLogs, INTERVALS.LOGS);
       setInterval(updateStatus, INTERVALS.STATUS);
       setInterval(checkStaleData, INTERVALS.TEMPS);
+      let __rb_resize_timer;
+      window.addEventListener('resize', () => {
+        clearTimeout(__rb_resize_timer);
+        __rb_resize_timer = setTimeout(() => {
+          loadHistory();
+        }, 200);
+      });
     </script>
   </body>
 </html>

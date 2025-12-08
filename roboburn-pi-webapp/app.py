@@ -3,6 +3,7 @@ import os
 import threading
 import time
 from collections import deque
+import bisect
 
 from flask import Flask, jsonify, render_template, request
 from flask_assets import Bundle, Environment
@@ -216,6 +217,33 @@ def get_temperature_history():
         # Combine and sort all data
         all_data = recent_data + historical_data
         all_data.sort(key=lambda x: x[KEY_TIME])
+
+        # Optional downsampling by requested count, evenly distributed across timeline
+        req_count = request.args.get("count", type=int)
+        if req_count and req_count > 0 and len(all_data) > req_count:
+            times = [x[KEY_TIME] for x in all_data]
+            t_min = times[0]
+            t_max = times[-1]
+            if t_max == t_min:
+                sampled = [all_data[-1]]
+            else:
+                step = (t_max - t_min) / max(1, (req_count - 1))
+                chosen_indices = []
+                last_idx = -1
+                for i in range(req_count):
+                    target_t = t_min + i * step
+                    idx = bisect.bisect_left(times, target_t)
+                    if idx >= len(times):
+                        idx = len(times) - 1
+                    if idx > 0:
+                        # choose closer between idx-1 and idx
+                        if abs(times[idx] - target_t) >= abs(target_t - times[idx - 1]):
+                            idx = idx - 1
+                    if idx != last_idx:
+                        chosen_indices.append(idx)
+                        last_idx = idx
+                sampled = [all_data[i] for i in chosen_indices]
+            return jsonify(sampled)
 
         return jsonify(all_data)
 
