@@ -36,6 +36,9 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       .temperature-display.burner-on {
         background-color: #ffcccc; /* Light red */
       }
+      .temperature-display.status-no-conn { background-color: pink; }
+      .temperature-display.status-s1 { background-color: yellow; }
+      .temperature-display.status-s2 { background-color: #ff4d4d; }
       .temp-label {
         font-size: 0.5em; /* Smaller label font */
       }
@@ -311,38 +314,58 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
           .then(data => {
             if (!data.time) return;
 
-            // Convert from Celsius to Fahrenheit for display
-            const oilTempF = celsiusToFahrenheit(data.oil_temp);
-            const turkeyTempF = celsiusToFahrenheit(data.turkey_temp);
+            // Convert from Celsius to Fahrenheit for display, guard invalid values
+            if (typeof data.oil_temp === 'number' && isFinite(data.oil_temp)) {
+              const oilTempF = celsiusToFahrenheit(data.oil_temp);
+              oilTempDisplay.textContent = oilTempF.toFixed(1) + '°F';
+            } else {
+              oilTempDisplay.textContent = '--°F';
+            }
+            if (typeof data.turkey_temp === 'number' && isFinite(data.turkey_temp)) {
+              const turkeyTempF = celsiusToFahrenheit(data.turkey_temp);
+              turkeyTempDisplay.textContent = turkeyTempF.toFixed(1) + '°F';
+            } else {
+              turkeyTempDisplay.textContent = '--°F';
+            }
             
-            oilTempDisplay.textContent = oilTempF.toFixed(1) + '°F';
-            turkeyTempDisplay.textContent = turkeyTempF.toFixed(1) + '°F';
-            
-            // Update voltage displays if available
-            if (data.oil_voltage !== undefined) {
+            // Update voltage/resistance displays if available and numeric
+            if (typeof data.oil_voltage === 'number') {
               oilVoltageDisplay.textContent = `${data.oil_voltage.toFixed(3)}V`;
+            } else {
+              oilVoltageDisplay.textContent = `--V`;
             }
-            if (data.turkey_voltage !== undefined) {
+            if (typeof data.turkey_voltage === 'number') {
               turkeyVoltageDisplay.textContent = `${data.turkey_voltage.toFixed(3)}V`;
+            } else {
+              turkeyVoltageDisplay.textContent = `--V`;
             }
-            if (data.oil_resistance !== undefined) {
+            if (typeof data.oil_resistance === 'number' && isFinite(data.oil_resistance)) {
               const resistance = data.oil_resistance;
               const unit = resistance >= 1000 ? 'kΩ' : 'Ω';
               const value = resistance >= 1000 ? (resistance / 1000).toFixed(2) : Math.round(resistance);
               oilResistanceDisplay.textContent = `${value}${unit}`;
+            } else {
+              oilResistanceDisplay.textContent = `--Ω`;
             }
-            if (data.turkey_resistance !== undefined) {
+            if (typeof data.turkey_resistance === 'number' && isFinite(data.turkey_resistance)) {
               const resistance = data.turkey_resistance;
               const unit = resistance >= 1000 ? 'kΩ' : 'Ω';
               const value = resistance >= 1000 ? (resistance / 1000).toFixed(2) : Math.round(resistance);
               turkeyResistanceDisplay.textContent = `${value}${unit}`;
+            } else {
+              turkeyResistanceDisplay.textContent = `--Ω`;
             }
 
-            const newDataPointOil = { x: data.time, y: oilTempF };
-            const newDataPointTurkey = { x: data.time, y: turkeyTempF };
+            // Push chart points if numeric
+            const oilTempFChart = (typeof data.oil_temp === 'number' && isFinite(data.oil_temp)) ? celsiusToFahrenheit(data.oil_temp) : null;
+            const turkeyTempFChart = (typeof data.turkey_temp === 'number' && isFinite(data.turkey_temp)) ? celsiusToFahrenheit(data.turkey_temp) : null;
+            if (oilTempFChart !== null && turkeyTempFChart !== null) {
+              const newDataPointOil = { x: data.time, y: oilTempFChart };
+              const newDataPointTurkey = { x: data.time, y: turkeyTempFChart };
 
-            tempChart.data.datasets[0].data.push(newDataPointOil);
-            tempChart.data.datasets[1].data.push(newDataPointTurkey);
+              tempChart.data.datasets[0].data.push(newDataPointOil);
+              tempChart.data.datasets[1].data.push(newDataPointTurkey);
+            }
 
             while (tempChart.data.datasets[0].data.length > budget) {
               tempChart.data.datasets[0].data.shift();
@@ -387,10 +410,21 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
               runStopButton.classList.add('btn-success');
             }
 
-            if (data.burner_on) {
-              oilDisplayContainer.classList.add('burner-on');
+            [oilDisplayContainer, turkeyDisplayContainer].forEach(el => {
+              el.classList.remove('status-no-conn', 'status-s1', 'status-s2', 'burner-on');
+            });
+            if (!data.connected) {
+              oilDisplayContainer.classList.add('status-no-conn');
+              turkeyDisplayContainer.classList.add('status-no-conn');
             } else {
-              oilDisplayContainer.classList.remove('burner-on');
+              const stage = data.burner_request_stage || 0;
+              if (stage === 2) {
+                oilDisplayContainer.classList.add('status-s2');
+                turkeyDisplayContainer.classList.add('status-s2');
+              } else if (stage === 1) {
+                oilDisplayContainer.classList.add('status-s1');
+                turkeyDisplayContainer.classList.add('status-s1');
+              }
             }
 
             // Convert target temp from Celsius to Fahrenheit for display

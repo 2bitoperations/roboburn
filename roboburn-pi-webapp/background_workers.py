@@ -178,14 +178,26 @@ def temperature_worker(
 
     logger.info(f"ADS open, current reading oil {adc_chan_oil.voltage}v, turkey {adc_chan_turkey.voltage}")
     while True:
-        with data_lock:
-            # Get temperature and resistance for both probes
+        try:
+            # Try reading voltages from ADC
             oil_voltage = adc_chan_oil.voltage
             turkey_voltage = adc_chan_turkey.voltage
-            
             oil_reading = get_temp_celsius(oil_voltage)
             turkey_reading = get_temp_celsius(turkey_voltage)
-            
+            with control_lock:
+                control_status["connected"] = True
+        except Exception as e:
+            logger.error(f"ADC read error: {e}")
+            with control_lock:
+                control_status["connected"] = False
+            # Use previous values if available
+            oil_voltage = None
+            turkey_voltage = None
+            oil_reading = TemperatureReading(None, None)
+            turkey_reading = TemperatureReading(None, None)
+
+        with data_lock:
+            # Get temperature and resistance for both probes
             temperature_data["oil_temp"] = oil_reading.temperature_celsius
             temperature_data["turkey_temp"] = turkey_reading.temperature_celsius
             temperature_data["oil_voltage"] = oil_voltage
@@ -231,31 +243,49 @@ def burner_control_worker(
     control_lock,
     pid,
 ):
-    """Worker thread for controlling the burner with a 5-second toggle constraint for turning ON."""
+    """Worker thread for controlling a two-stage burner with cooldowns and hysteresis."""
     logger.info("Burner control worker started.")
-    BURNER_ON_COOLDOWN = 5  # seconds
-    BURNER_PIN = 21
-    
-    # Initialize the burner relay (active high)
-    burner_relay = OutputDevice(BURNER_PIN, active_high=True, initial_value=False)
-    logger.info(f"Initialized burner control on GPIO {BURNER_PIN}")
+    COOLDOWN_S1 = 3  # seconds
+    COOLDOWN_S2 = 3  # seconds
+    PIN_STAGE1 = 21
+    PIN_STAGE2 = 20
+
+    # Initialize the stage relays (active high)
+    stage1 = OutputDevice(PIN_STAGE1, active_high=True, initial_value=False)
+    stage2 = OutputDevice(PIN_STAGE2, active_high=True, initial_value=False)
+    logger.info(f"Initialized burner stage1 on GPIO {PIN_STAGE1}, stage2 on GPIO {PIN_STAGE2}")
+
+    # PID thresholds (output 0..100)
+    # Stage 0 -> < 30, Stage 1 -> 30..70, Stage 2 -> > 70 with hysteresis
+    S1_ON = 35
+    S1_OFF = 25
+    S2_ON = 75
+    S2_OFF = 65
+
+    last_s1_toggle = 0.0
+    last_s2_toggle = 0.0
 
     while True:
         with control_lock:
             is_running = control_status["running"]
             target = control_status["target_temp"]
             pid.setpoint = target
-            current_burner_state = control_status["burner_on"]
-            last_toggle = control_status["last_toggle_time"]
+            s1_on = control_status.get("burner_stage1_on", False)
+            s2_on = control_status.get("burner_stage2_on", False)
 
         if not is_running:
-            if current_burner_state:
+            if s1_on or s2_on:
+                stage2.off()
+                stage1.off()
                 with control_lock:
+                    control_status["burner_stage2_on"] = False
+                    control_status["burner_stage1_on"] = False
                     control_status["burner_on"] = False
-                    control_status["last_toggle_time"] = time.time()
-                    burner_relay.off()
-                    logger.warning("System stopped. Turning burner OFF immediately.")
+                    control_status["burner_request_stage"] = 0
                 pid.reset()
+            else:
+                with control_lock:
+                    control_status["burner_request_stage"] = 0
             time.sleep(1)
             continue
 
@@ -265,27 +295,65 @@ def burner_control_worker(
             )
 
         pid_output = pid(current_oil_temp)
-        desired_burner_state = pid_output > 50
 
-        time_since_last_toggle = time.time() - last_toggle
+        # Determine requested stage with hysteresis
+        requested_stage = 0
+        if s2_on:
+            requested_stage = 2 if pid_output >= S2_OFF else 1 if pid_output >= S1_OFF else 0
+        elif s1_on:
+            requested_stage = 2 if pid_output >= S2_ON else 1 if pid_output >= S1_OFF else 0
+        else:
+            requested_stage = 2 if pid_output >= S2_ON else 1 if pid_output >= S1_ON else 0
 
-        # Logic for state change
-        if current_burner_state != desired_burner_state:
-            if desired_burner_state is False:  # Turning OFF is always allowed
-                with control_lock:
-                    control_status["burner_on"] = False
-                    control_status["last_toggle_time"] = time.time()
-                    burner_relay.off()
-                    logger.info(f"Burner OFF. PID Output: {pid_output:.1f}")
-            # Turning ON is only allowed after cooldown
-            elif desired_burner_state is True and time_since_last_toggle > BURNER_ON_COOLDOWN:
-                with control_lock:
-                    control_status["burner_on"] = True
-                    control_status["last_toggle_time"] = time.time()
-                    burner_relay.on()
-                    logger.info(f"Burner ON. PID Output: {pid_output:.1f}")
+        now = time.time()
+
+        # Enforce sequencing: stage2 only when stage1 is on
+        # Apply stage transitions with cooldowns
+        # Handle Stage 2
+        if requested_stage == 2:
+            # Ensure stage1 is on
+            if not s1_on and (now - last_s1_toggle) > COOLDOWN_S1:
+                stage1.on()
+                s1_on = True
+                last_s1_toggle = now
+                logger.info("Stage 1 ON for Stage 2 request")
+            # Then handle stage2
+            if s1_on and not s2_on and (now - last_s2_toggle) > COOLDOWN_S2:
+                stage2.on()
+                s2_on = True
+                last_s2_toggle = now
+                logger.info("Stage 2 ON")
+        elif requested_stage == 1:
+            # Turn off stage2 if on
+            if s2_on and (now - last_s2_toggle) > COOLDOWN_S2:
+                stage2.off()
+                s2_on = False
+                last_s2_toggle = now
+                logger.info("Stage 2 OFF (request stage 1)")
+            # Ensure stage1 is on
+            if not s1_on and (now - last_s1_toggle) > COOLDOWN_S1:
+                stage1.on()
+                s1_on = True
+                last_s1_toggle = now
+                logger.info("Stage 1 ON")
+        else:  # requested_stage == 0
+            # Turn off both stages respecting cooldowns
+            if s2_on and (now - last_s2_toggle) > COOLDOWN_S2:
+                stage2.off()
+                s2_on = False
+                last_s2_toggle = now
+                logger.info("Stage 2 OFF")
+            if s1_on and (now - last_s1_toggle) > COOLDOWN_S1:
+                stage1.off()
+                s1_on = False
+                last_s1_toggle = now
+                logger.info("Stage 1 OFF")
 
         with control_lock:
+            control_status["burner_stage1_on"] = s1_on
+            control_status["burner_stage2_on"] = s2_on
+            control_status["burner_on"] = s1_on or s2_on
+            control_status["burner_request_stage"] = requested_stage
             control_status["pid_output"] = pid_output
 
         time.sleep(1)

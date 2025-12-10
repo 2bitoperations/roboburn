@@ -18,6 +18,13 @@ KEY_TARGET_TEMP = "target_temp"
 KEY_BURNER_ON = "burner_on"
 KEY_PID_OUTPUT = "pid_output"
 KEY_LAST_TOGGLE_TIME = "last_toggle_time"
+# Two-stage burner additions
+KEY_STAGE1_ON = "burner_stage1_on"
+KEY_STAGE2_ON = "burner_stage2_on"
+KEY_BURNER_REQUEST_STAGE = "burner_request_stage"  # 0,1,2
+KEY_CONNECTED = "connected"
+KEY_LAST_TOGGLE_TIME_STAGE1 = "last_toggle_time_stage1"
+KEY_LAST_TOGGLE_TIME_STAGE2 = "last_toggle_time_stage2"
 
 SECOND = 1
 MINUTE = 60
@@ -83,6 +90,13 @@ control_status = {
     KEY_BURNER_ON: False,
     KEY_PID_OUTPUT: 0.0,
     KEY_LAST_TOGGLE_TIME: 0,
+    # Two-stage burner state
+    KEY_STAGE1_ON: False,
+    KEY_STAGE2_ON: False,
+    KEY_BURNER_REQUEST_STAGE: 0,
+    KEY_CONNECTED: False,
+    KEY_LAST_TOGGLE_TIME_STAGE1: 0,
+    KEY_LAST_TOGGLE_TIME_STAGE2: 0,
 }
 control_lock = threading.Lock()
 
