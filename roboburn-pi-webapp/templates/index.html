@@ -39,6 +39,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
       .temperature-display.status-no-conn { background-color: pink; }
       .temperature-display.status-s1 { background-color: yellow; }
       .temperature-display.status-s2 { background-color: #ff4d4d; }
+      .temperature-display.status-fetch-failed { background-color: purple; }
       .temp-label {
         font-size: 0.5em; /* Smaller label font */
       }
@@ -376,8 +377,16 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
             lastFetchTime = Date.now();
             oilDisplayContainer.classList.remove('stale-data');
             turkeyDisplayContainer.classList.remove('stale-data');
+            oilDisplayContainer.classList.remove('status-fetch-failed');
+            turkeyDisplayContainer.classList.remove('status-fetch-failed');
           })
-          .catch(error => console.error('Error fetching temperatures:', error));
+          .catch(error => {
+            console.error('Error fetching temperatures:', error);
+            [oilDisplayContainer, turkeyDisplayContainer].forEach(el => {
+              el.classList.remove('status-no-conn', 'status-s1', 'status-s2', 'stale-data');
+              el.classList.add('status-fetch-failed');
+            });
+          });
       }
 
       function updateLogs() {
@@ -398,7 +407,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
 
       function updateStatus() {
         fetch(API.STATUS)
-          .then(response => response.json())
+          .then(response => response.ok ? response.json() : Promise.reject('Network response was not ok'))
           .then(data => {
             if (data.running) {
               runStopButton.textContent = 'STOP';
@@ -411,7 +420,7 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
             }
 
             [oilDisplayContainer, turkeyDisplayContainer].forEach(el => {
-              el.classList.remove('status-no-conn', 'status-s1', 'status-s2', 'burner-on');
+              el.classList.remove('status-no-conn', 'status-s1', 'status-s2', 'burner-on', 'status-fetch-failed');
             });
             if (!data.connected) {
               oilDisplayContainer.classList.add('status-no-conn');
@@ -436,7 +445,13 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
             tempChart.options.plugins.annotation.annotations.targetLine.yMax = targetTempF;
             tempChart.update();
           })
-          .catch(error => console.error('Error fetching status:', error));
+          .catch(error => {
+            console.error('Error fetching status:', error);
+            [oilDisplayContainer, turkeyDisplayContainer].forEach(el => {
+              el.classList.remove('status-no-conn', 'status-s1', 'status-s2', 'stale-data');
+              el.classList.add('status-fetch-failed');
+            });
+          });
       }
 
       function toggleRunState() {

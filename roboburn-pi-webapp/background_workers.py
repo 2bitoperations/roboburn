@@ -264,6 +264,8 @@ def burner_control_worker(
 
     last_s1_toggle = 0.0
     last_s2_toggle = 0.0
+    PID_LOG_INTERVAL = 10.0
+    last_pid_log = 0.0
 
     while True:
         with control_lock:
@@ -355,5 +357,9 @@ def burner_control_worker(
             control_status["burner_on"] = s1_on or s2_on
             control_status["burner_request_stage"] = requested_stage
             control_status["pid_output"] = pid_output
+
+        if is_running and (now - last_pid_log) >= PID_LOG_INTERVAL:
+            logger.info(f"PID {pid_output:.1f} | stage_req {requested_stage} | s1 {'ON' if s1_on else 'off'} | s2 {'ON' if s2_on else 'off'}")
+            last_pid_log = now
 
         time.sleep(1)
