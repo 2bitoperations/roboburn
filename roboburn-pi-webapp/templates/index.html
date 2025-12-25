@@ -299,8 +299,14 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
         fetch(`${API.HISTORY}?count=${count}`)
           .then(response => response.json())
           .then(history => {
-            const oilData = history.map(item => ({ x: item.time, y: item.oil_temp }));
-            const turkeyData = history.map(item => ({ x: item.time, y: item.turkey_temp }));
+            const oilData = history.map(item => ({
+              x: item.time,
+              y: (typeof item.oil_temp === 'number') ? celsiusToFahrenheit(item.oil_temp) : null
+            }));
+            const turkeyData = history.map(item => ({
+              x: item.time,
+              y: (typeof item.turkey_temp === 'number') ? celsiusToFahrenheit(item.turkey_temp) : null
+            }));
             
             tempChart.data.datasets[0].data = oilData;
             tempChart.data.datasets[1].data = turkeyData;
