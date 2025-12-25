@@ -177,24 +177,56 @@ def temperature_worker(
     adc_chan_turkey = AnalogIn(ads, ADS.P1)
 
     logger.info(f"ADS open, current reading oil {adc_chan_oil.voltage}v, turkey {adc_chan_turkey.voltage}")
+    
+    failure_start_time = None
+    
+    # Initialize with safe defaults to prevent crash on first loop failure and to hold values during failure
+    oil_voltage = 0.0
+    turkey_voltage = 0.0
+    oil_reading = TemperatureReading(21.1, 10000.0)
+    turkey_reading = TemperatureReading(21.1, 10000.0)
+
     while True:
         try:
             # Try reading voltages from ADC
-            oil_voltage = adc_chan_oil.voltage
-            turkey_voltage = adc_chan_turkey.voltage
-            oil_reading = get_temp_celsius(oil_voltage)
-            turkey_reading = get_temp_celsius(turkey_voltage)
+            curr_oil_voltage = adc_chan_oil.voltage
+            curr_turkey_voltage = adc_chan_turkey.voltage
+            
+            curr_oil_reading = get_temp_celsius(curr_oil_voltage)
+            curr_turkey_reading = get_temp_celsius(curr_turkey_voltage)
+            
+            # Check validity of critical sensor (oil)
+            if not curr_oil_reading.is_valid:
+                raise ValueError(f"Invalid oil sensor reading (v={curr_oil_voltage})")
+            
+            # Update state with successful readings
+            oil_voltage = curr_oil_voltage
+            oil_reading = curr_oil_reading
+            
+            # Update turkey only if valid, otherwise keep last known
+            if curr_turkey_reading.is_valid:
+                turkey_voltage = curr_turkey_voltage
+                turkey_reading = curr_turkey_reading
+            
+            failure_start_time = None
+
             with control_lock:
                 control_status["connected"] = True
         except Exception as e:
             logger.error(f"ADC read error: {e}")
+            
+            if failure_start_time is None:
+                failure_start_time = time.time()
+
             with control_lock:
                 control_status["connected"] = False
-            # Use previous values if available
-            oil_voltage = None
-            turkey_voltage = None
-            oil_reading = TemperatureReading(None, None)
-            turkey_reading = TemperatureReading(None, None)
+                if time.time() - failure_start_time > 60:
+                    if control_status["running"]:
+                        logger.error("ADC read failed for > 60s. Stopping system.")
+                        control_status["running"] = False
+
+            # We do NOT reset values to None here. We keep the last known good values
+            # to tolerate temporary failures without crashing the consumer threads.
 
         with data_lock:
             # Get temperature and resistance for both probes

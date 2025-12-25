@@ -393,7 +393,13 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
         fetch(API.LOGS)
           .then(response => response.json())
           .then(logs => {
-            if (logWindow.children.length !== logs.length) {
+            // Only update if the number of logs has changed or the last log is different
+            // This is a simple check, but effective enough for this use case
+            const currentLogCount = logWindow.children.length;
+            const lastLogText = currentLogCount > 0 ? logWindow.lastElementChild.textContent : "";
+            const newLastLogText = logs.length > 0 ? logs[logs.length - 1] : "";
+
+            if (currentLogCount !== logs.length || lastLogText !== newLastLogText) {
               logWindow.innerHTML = '';
               logs.forEach(log => {
                 const div = document.createElement('div');
@@ -402,7 +408,8 @@ Mobile-friendly UI for RoboBurn Pi Webapp.
               });
               logWindow.scrollTop = logWindow.scrollHeight;
             }
-          });
+          })
+          .catch(error => console.error('Error fetching logs:', error));
       }
 
       function updateStatus() {
