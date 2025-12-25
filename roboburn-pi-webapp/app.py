@@ -280,7 +280,9 @@ def set_target_temp():
     if temp is not None:
         with control_lock:
             control_status[KEY_TARGET_TEMP] = float(temp)
-        app.logger.info(f"Target temperature set to: {temp}°F")
+        # Convert to F for logging to match user expectation
+        temp_f = (float(temp) * 9.0 / 5.0) + 32.0
+        app.logger.info(f"Target temperature set to: {temp_f:.1f}°F")
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid temperature"})
 
